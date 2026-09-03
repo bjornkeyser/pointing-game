@@ -19,6 +19,8 @@ Open `index.html` and edit the `CONFIG` block at the top of the `<script>`:
 - `endpoint` – the Apps Script URL from step 2.
 - `shuffle` – randomise landmark order per player.
 
+The UI is in Dutch. The results screen shows a map (Leaflet + OpenStreetMap tiles, loaded from a CDN, so guests need internet).
+
 Pick landmarks that are far away (a kilometre or more). The bearing to something
 close by changes too much depending on where in the room a guest is standing.
 
@@ -52,6 +54,7 @@ provides that for free.
 - iPhone: Safari asks for motion permission when the guest taps "Enable compass".
   This must happen from a tap, which is why there is a separate permission screen.
 - Android: Chrome needs no permission. The app uses `deviceorientationabsolute` when available.
+- The live compass value is deliberately hidden during play; the rotating dial only shows that the sensor works.
 - Laptops usually have no compass. Append `?debug=1` to the URL for a debug panel
   with a fake-heading slider so you can test the scoring without a phone.
 - Phone compasses can be off by 5 to 15° depending on the device and nearby metal.

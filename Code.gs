@@ -10,7 +10,8 @@ const SHEET_NAME = "results";
 const HEADER = [
   "timestamp", "name", "landmark", "trueBearing", "rawHeading",
   "heading", "error", "absError", "meanAbsError", "declination",
-  "venueLat", "venueLon", "userAgent",
+  "venueLat", "venueLon", "landmarkLat", "landmarkLon", "guessLat", "guessLon",
+  "trialTime", "userAgent",
 ];
 
 function doPost(e) {
@@ -24,7 +25,8 @@ function doPost(e) {
     const rows = (data.trials || []).map(t => [
       data.timestamp, data.name, t.name, t.trueBearing, t.rawHeading,
       t.heading, t.error, t.absError, data.meanAbsError, data.declination,
-      data.venue && data.venue.lat, data.venue && data.venue.lon, data.userAgent,
+      data.venue && data.venue.lat, data.venue && data.venue.lon,
+      t.lat, t.lon, t.guessLat, t.guessLon, t.t, data.userAgent,
     ]);
     if (rows.length) {
       sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, HEADER.length).setValues(rows);

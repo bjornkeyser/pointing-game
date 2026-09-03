@@ -1,21 +1,23 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="nl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0f1117">
-<title>Arnhem Pointing Game</title>
+<meta name="theme-color" content="#1a0b2e">
+<title>🧭 Wijs het aan!</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
   :root {
-    --bg: #0f1117;
-    --card: #1a1d27;
-    --fg: #f2f3f7;
-    --muted: #9aa0b4;
-    --accent: #ff7a3d;
-    --accent-dark: #d9602a;
-    --good: #4cd98a;
-    --bad: #ff5c5c;
+    --bg: #1a0b2e;
+    --card: rgba(255,255,255,0.08);
+    --fg: #fff7ec;
+    --muted: #c9b8e0;
+    --accent: #ff6b9d;
+    --accent2: #ffc857;
+    --good: #5eead4;
+    --bad: #ff7b7b;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -29,6 +31,8 @@
   body {
     display: flex; flex-direction: column;
     min-height: 100vh; min-height: 100dvh;
+    background: radial-gradient(circle at 20% 10%, #4a1d7a 0%, var(--bg) 50%),
+                radial-gradient(circle at 80% 90%, #7a1d4a 0%, transparent 50%), var(--bg);
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
   section.screen {
@@ -40,146 +44,197 @@
     -webkit-user-select: none; user-select: none;
   }
   section.screen.active { display: flex; }
-  h1 { font-size: 1.8rem; margin: 0; text-align: center; }
-  h2 { font-size: 1.2rem; margin: 0; color: var(--muted); font-weight: 500; text-align: center; }
+  section.screen.top { justify-content: flex-start; }
+  h1 { font-size: 2rem; margin: 0; text-align: center; line-height: 1.2; }
+  h2 { font-size: 1.15rem; margin: 0; color: var(--muted); font-weight: 500; text-align: center; }
   p { margin: 0; line-height: 1.5; color: var(--muted); text-align: center; }
-  .landmark { font-size: 2.4rem; font-weight: 700; text-align: center; line-height: 1.15; }
-  .heading {
-    font-size: 4.5rem; font-weight: 700; text-align: center;
-    font-variant-numeric: tabular-nums; letter-spacing: -0.02em;
-    line-height: 1;
+  .emoji-big { font-size: 4rem; text-align: center; line-height: 1; }
+  .landmark {
+    font-size: 2.3rem; font-weight: 800; text-align: center; line-height: 1.15;
+    color: var(--accent2);
   }
-  .heading small { font-size: 1.2rem; color: var(--muted); font-weight: 500; margin-left: 4px; }
-  .cardinal { text-align: center; color: var(--muted); font-size: 1.1rem; margin-top: -8px; }
   input[type=text] {
     width: 100%; font-size: 1.4rem; padding: 16px;
-    border-radius: 12px; border: 2px solid #2b2f3f;
+    border-radius: 14px; border: 2px solid rgba(255,255,255,0.15);
     background: var(--card); color: var(--fg); outline: none;
     -webkit-user-select: text; user-select: text;
   }
   input[type=text]:focus { border-color: var(--accent); }
   button {
-    width: 100%; min-height: 72px; font-size: 1.35rem; font-weight: 700;
-    border: none; border-radius: 16px; cursor: pointer;
-    background: var(--accent); color: #fff;
+    width: 100%; min-height: 72px; font-size: 1.35rem; font-weight: 800;
+    border: none; border-radius: 18px; cursor: pointer;
+    background: linear-gradient(135deg, var(--accent), #ff8c5a); color: #fff;
+    box-shadow: 0 6px 20px rgba(255,107,157,0.35);
     touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   }
-  button:active { background: var(--accent-dark); transform: scale(0.98); }
-  button:disabled { opacity: 0.4; cursor: default; }
-  button.secondary { background: var(--card); color: var(--fg); font-weight: 500; min-height: 56px; font-size: 1.05rem; }
+  button:active { transform: scale(0.97); box-shadow: 0 3px 10px rgba(255,107,157,0.3); }
+  button:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
+  button.secondary { background: var(--card); color: var(--fg); font-weight: 600; min-height: 56px; font-size: 1.05rem; box-shadow: none; }
   .big { min-height: 110px; font-size: 1.6rem; }
   .status { text-align: center; color: var(--muted); min-height: 1.4em; }
   .error { color: var(--bad); text-align: center; }
-  .warn { background: #2a2416; border: 1px solid #5a4a1e; color: #ffd27a; border-radius: 12px; padding: 12px; text-align: center; }
-  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; }
+  .warn { background: rgba(255,200,87,0.12); border: 1px solid rgba(255,200,87,0.4); color: var(--accent2); border-radius: 14px; padding: 12px; text-align: center; }
+
+  /* voortgang */
+  .progress { text-align: center; color: var(--muted); font-size: 1rem; font-weight: 600; }
+  .bar { height: 10px; background: rgba(255,255,255,0.12); border-radius: 999px; overflow: hidden; }
+  .bar > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 999px; transition: width 0.3s ease; }
+  .dots { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+  .dots span { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.15); }
+  .dots span.done { background: var(--accent2); }
+  .dots span.now { background: var(--accent); transform: scale(1.3); }
+
+  /* wijzerplaat */
+  .dial-wrap { display: flex; justify-content: center; }
+  .dial { width: min(60vw, 240px); height: min(60vw, 240px); }
+  .dial .rot { transform-origin: 50% 50%; will-change: transform; }
+  .dial .tick { stroke: var(--muted); stroke-width: 2; stroke-linecap: round; opacity: 0.75; }
+  .dial .tick.major { stroke: var(--fg); stroke-width: 3; opacity: 0.9; }
+  .dial .ring { fill: none; stroke: rgba(255,255,255,0.18); stroke-width: 2; }
+  .dial .center { fill: var(--accent2); }
+  .dial .pointer { fill: var(--accent); }
+  .dial-hint { text-align: center; color: var(--muted); font-size: 0.95rem; min-height: 1.3em; }
+
+  /* uitslag */
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 14px; overflow: hidden; }
   th, td { padding: 12px 14px; text-align: left; font-size: 1rem; }
-  th { color: var(--muted); font-weight: 500; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
-  td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  tr + tr td { border-top: 1px solid #2b2f3f; }
+  th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+  tbody tr { cursor: pointer; }
+  tbody tr.sel { background: rgba(255,200,87,0.18); }
+  tbody tr.sel td:first-child::before { content: "👉 "; }
+  tr + tr td { border-top: 1px solid rgba(255,255,255,0.08); }
   .score { text-align: center; }
-  .score .val { font-size: 3.5rem; font-weight: 700; line-height: 1; }
+  .score .val { font-size: 4rem; font-weight: 800; line-height: 1; color: var(--accent2); }
   .score .lbl { color: var(--muted); margin-top: 6px; }
-  .progress { text-align: center; color: var(--muted); font-size: 0.95rem; }
+  .grade { font-size: 1.2rem; text-align: center; color: var(--fg); font-weight: 600; }
+  #map { width: 100%; height: 320px; border-radius: 14px; overflow: hidden; background: #ddd; }
+  .legend { display: flex; justify-content: center; gap: 18px; font-size: 0.9rem; color: var(--muted); flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 22px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+  .leaflet-container { font-family: inherit; }
+  .lbl-marker { background: none; border: none; }
+  .lbl-marker div { font-size: 22px; line-height: 1; text-align: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); }
+
   #debug {
     display: none; position: fixed; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.85); color: #9ef; font: 12px/1.4 monospace;
-    padding: 8px 12px; z-index: 99;
+    padding: 8px 12px; z-index: 9999;
   }
   #debug input[type=range] { width: 100%; }
-  .grade { font-size: 1.1rem; text-align: center; color: var(--fg); }
 </style>
 </head>
 <body>
 
-<!-- 1. Name -->
+<!-- 1. Naam -->
 <section class="screen active" id="s-name">
-  <h1>Arnhem Pointing Game</h1>
-  <p>How well do you know where things are? Point your phone at landmarks and find out.</p>
-  <input type="text" id="name" placeholder="Your name" autocomplete="off" autocapitalize="words" maxlength="40">
-  <button id="btn-start" disabled>Start</button>
+  <div class="emoji-big">🧭🎉</div>
+  <h1>Wijs het aan!</h1>
+  <p>Hoe goed ken jij de buurt? Wijs met je telefoon naar bekende plekken en ontdek of je een menselijk kompas bent… of hopeloos verdwaald.</p>
+  <input type="text" id="name" placeholder="Hoe heet je?" autocomplete="off" autocapitalize="words" maxlength="40">
+  <button id="btn-start">Ik doe mee! 🙋</button>
 </section>
 
-<!-- 2. Permission -->
+<!-- 2. Toestemming -->
 <section class="screen" id="s-perm">
-  <h1>Enable your compass</h1>
-  <p>We need access to your phone's compass to see which way you're pointing. Tap the button and allow access.</p>
-  <button id="btn-perm">Enable compass</button>
+  <div class="emoji-big">🧭</div>
+  <h1>Kompas aanzetten</h1>
+  <p>De app heeft je kompas nodig om te zien welke kant je op wijst. Tik op de knop en kies <b>Sta toe</b>.</p>
+  <button id="btn-perm">Kompas aanzetten 🧭</button>
   <div class="error" id="perm-error"></div>
   <div class="warn" id="perm-warn" style="display:none">
-    No compass data received. On a laptop this is normal. On a phone, check that you're using Safari (iPhone) or Chrome (Android) and the page is on https.
+    Geen kompasgegevens ontvangen. Op een laptop is dat normaal. Op een telefoon: gebruik Safari (iPhone) of Chrome (Android).
     <br><br>
-    <button class="secondary" id="btn-continue-anyway">Continue anyway (testing)</button>
+    <button class="secondary" id="btn-continue-anyway">Toch doorgaan (testen)</button>
   </div>
 </section>
 
-<!-- 3. Trial -->
+<!-- 3. Ronde -->
 <section class="screen" id="s-trial">
   <div class="progress" id="progress"></div>
-  <h2>Point your phone at</h2>
+  <div class="bar"><div id="bar-fill"></div></div>
+  <div class="dots" id="dots"></div>
+  <h2>Wijs met je telefoon naar</h2>
   <div class="landmark" id="landmark"></div>
-  <div class="heading"><span id="hdg">—</span><small>°</small></div>
-  <div class="cardinal" id="cardinal"></div>
-  <p>Hold the phone flat or upright, top edge towards the landmark.</p>
-  <button class="big" id="btn-point">I'm pointing at it</button>
+  <div class="dial-wrap">
+    <svg class="dial" viewBox="0 0 200 200" aria-hidden="true">
+      <circle class="ring" cx="100" cy="100" r="92"/>
+      <g class="rot" id="dial-rot"></g>
+      <polygon class="pointer" points="100,8 94,22 106,22"/>
+      <circle class="center" cx="100" cy="100" r="6"/>
+    </svg>
+  </div>
+  <div class="dial-hint" id="dial-hint"></div>
+  <p>Houd je telefoon plat of rechtop, met de bovenkant richting de plek.</p>
+  <button class="big" id="btn-point">Ik wijs ernaar! 👉</button>
 </section>
 
-<!-- 4. Results -->
-<section class="screen" id="s-results">
-  <h1>Your results</h1>
+<!-- 4. Uitslag -->
+<section class="screen top" id="s-results">
+  <div class="emoji-big" id="result-emoji">🏆</div>
+  <h1 id="result-title">Jouw uitslag</h1>
   <div class="score">
     <div class="val" id="mean"></div>
-    <div class="lbl">mean error (degrees)</div>
+    <div class="lbl">graden ernaast (gemiddeld)</div>
   </div>
   <div class="grade" id="grade"></div>
+  <div id="map"></div>
+  <div class="legend">
+    <span><i style="background:#22c55e"></i>echte richting</span>
+    <span><i style="background:#ff6b9d"></i>jouw gok</span>
+  </div>
+  <p>Tik op een plek in de lijst om die alleen te zien.</p>
   <table>
-    <thead><tr><th>Landmark</th><th style="text-align:right">Error</th></tr></thead>
+    <thead><tr><th>Plek</th><th style="text-align:right">Ernaast</th></tr></thead>
     <tbody id="results-body"></tbody>
   </table>
+  <button class="secondary" id="btn-showall">Alles op de kaart</button>
   <div class="status" id="send-status"></div>
-  <button class="secondary" id="btn-retry" style="display:none">Retry sending</button>
-  <button id="btn-again">Next player</button>
+  <button class="secondary" id="btn-retry" style="display:none">Opnieuw versturen</button>
+  <button id="btn-again">Volgende speler 🎉</button>
 </section>
 
 <div id="debug"></div>
 
 <script>
 // =====================================================================
-//  CONFIG – edit this block
+//  CONFIG – dit blok aanpassen
 // =====================================================================
 const CONFIG = {
-  // Google Apps Script web app URL (ends in /exec). See README.md.
-  endpoint: "https://script.google.com/macros/s/AKfycbzcZZTXO92FK5n2vTTc4ayJYsnNnzCinmFlEWGWf5pocHUMRCEXfyg94SLXZnFT4KW2/exec",
+  // Google Apps Script web-app URL (eindigt op /exec). Zie README.md.
+  endpoint: "https://script.google.com/macros/s/PASTE_YOUR_DEPLOYMENT_ID/exec",
 
-  // Where the party is. All bearings are computed from this point.
+  // Waar het feest is. Alle richtingen worden vanaf dit punt berekend.
   venue: { lat: 52.0036609249545, lon: 5.900240763615161 },
 
-  // Magnetic declination at Arnhem in degrees (east positive).
-  // Added to the phone's magnetic heading to get a true-north heading.
+  // Magnetische declinatie bij Arnhem in graden (oost positief).
   declination: 2.0,
 
-  // Landmarks to point at.
+  // Plekken om naar te wijzen.
   landmarks: [
     { name: "Zwembad Klarenbeek",       lat: 51.995647084472296, lon: 5.922720622871029 },
     { name: "Zwembad Valkenhuizen",     lat: 52.005868477710685, lon: 5.932999248376347 },
     { name: "Witte Villa (Sonsbeek)",   lat: 51.99057997663649,  lon: 5.905167055802988 },
     { name: "Ingang Burgers' Zoo",      lat: 52.00794439178726,  lon: 5.898552905279525 },
-    { name: "Papendal",                 lat: 52.00699688924955,  lon: 5.818886461349591 },
-    { name: "Posbank",                  lat: 52.03125855513795,  lon: 6.026204281088811 },
+    { name: "Sportcentrum Papendal",    lat: 52.014680361794994, lon: 5.830072551886468 },
+    { name: "Arnhem Centraal",          lat: 51.98425853573312,  lon: 5.90050763830271 },
+    { name: "Apeldoorn",                lat: 52.210529408529304, lon: 5.969901640682823 },
+    { name: "Nijmegen",                 lat: 51.844055147652604, lon: 5.860285507879977 },
+    { name: "Utrecht",                  lat: 52.09652528516114,  lon: 5.127011547400829 },
   ],
 
-  // Randomise landmark order per player.
+  // Volgorde per speler husselen.
   shuffle: true,
 };
 // =====================================================================
 
-// ---------- angle helpers ----------
+// ---------- hoekhulpjes ----------
 const norm360 = a => ((a % 360) + 360) % 360;
-// signed difference a - b in (-180, 180]
-const signedDiff = (a, b) => ((a - b + 540) % 360) - 180;
+const signedDiff = (a, b) => ((a - b + 540) % 360) - 180; // a - b in (-180, 180]
 const toRad = d => d * Math.PI / 180;
 const toDeg = r => r * 180 / Math.PI;
+const R = 6371000;
 
-// initial great-circle bearing from -> to, degrees clockwise from true north
+// grootcirkel-beginrichting van -> naar, graden met de klok mee vanaf het ware noorden
 function bearing(from, to) {
   const φ1 = toRad(from.lat), φ2 = toRad(to.lat);
   const Δλ = toRad(to.lon - from.lon);
@@ -187,24 +242,33 @@ function bearing(from, to) {
   const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
   return norm360(toDeg(Math.atan2(y, x)));
 }
-
-function cardinal(deg) {
-  const names = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
-  return names[Math.round(norm360(deg) / 22.5) % 16];
+function distance(a, b) {
+  const φ1 = toRad(a.lat), φ2 = toRad(b.lat);
+  const dφ = φ2 - φ1, dλ = toRad(b.lon - a.lon);
+  const h = Math.sin(dφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(dλ / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+// punt op afstand d (m) in richting brg vanaf from
+function destination(from, brg, d) {
+  const φ1 = toRad(from.lat), λ1 = toRad(from.lon), θ = toRad(brg), δ = d / R;
+  const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ));
+  const λ2 = λ1 + Math.atan2(Math.sin(θ) * Math.sin(δ) * Math.cos(φ1), Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2));
+  return { lat: toDeg(φ2), lon: toDeg(λ2) };
 }
 
 // ---------- state ----------
 const state = {
   name: "",
-  trials: [],        // [{name, trueBearing}]
+  trials: [],
   results: [],
   idx: 0,
-  rawHeading: null,  // latest raw magnetic heading from the device
+  rawHeading: null,
   smoothX: 0, smoothY: 0, hasSmooth: false,
   gotEvent: false,
   listening: false,
-  fake: null,        // debug fake heading
+  fake: null,
   lastPayload: null,
+  map: null, mapLayer: null, selected: null,
 };
 
 const DEBUG = new URLSearchParams(location.search).has("debug");
@@ -216,7 +280,7 @@ function show(id) {
   window.scrollTo(0, 0);
 }
 
-// ---------- compass ----------
+// ---------- kompas ----------
 function screenAngle() {
   if (screen.orientation && typeof screen.orientation.angle === "number") return screen.orientation.angle;
   if (typeof window.orientation === "number") return window.orientation;
@@ -224,13 +288,11 @@ function screenAngle() {
 }
 
 function headingFromEvent(e) {
-  // iOS Safari: webkitCompassHeading is clockwise from magnetic north, already screen-compensated
   if (typeof e.webkitCompassHeading === "number" && !isNaN(e.webkitCompassHeading)) {
-    return e.webkitCompassHeading;
+    return e.webkitCompassHeading; // iOS: met de klok mee vanaf magnetisch noorden
   }
   if (e.alpha == null) return null;
-  // Android: alpha is counter-clockwise from north (absolute if event is deviceorientationabsolute)
-  return norm360(360 - e.alpha + screenAngle());
+  return norm360(360 - e.alpha + screenAngle()); // Android: alpha is tegen de klok in
 }
 
 function onOrientation(e) {
@@ -238,7 +300,6 @@ function onOrientation(e) {
   if (h == null) return;
   state.gotEvent = true;
   state.rawHeading = h;
-  // circular exponential smoothing over unit vectors
   const a = 0.25;
   const x = Math.cos(toRad(h)), y = Math.sin(toRad(h));
   if (!state.hasSmooth) { state.smoothX = x; state.smoothY = y; state.hasSmooth = true; }
@@ -260,7 +321,6 @@ function startListening() {
   state.listening = true;
   const evt = ("ondeviceorientationabsolute" in window) ? "deviceorientationabsolute" : "deviceorientation";
   window.addEventListener(evt, onOrientation, true);
-  // iOS fires deviceorientation only; Android absolute may be missing on some browsers, so also listen to plain
   if (evt === "deviceorientationabsolute") {
     window.addEventListener("deviceorientation", e => { if (!state.gotEvent) onOrientation(e); }, true);
   }
@@ -273,32 +333,51 @@ async function requestCompass() {
         typeof DeviceOrientationEvent.requestPermission === "function") {
       const res = await DeviceOrientationEvent.requestPermission();
       if (res !== "granted") {
-        $("perm-error").textContent = "Permission denied. Please allow compass access and try again.";
+        $("perm-error").textContent = "Geen toestemming gekregen. Sta het kompas toe en probeer opnieuw.";
         return;
       }
     }
   } catch (err) {
-    $("perm-error").textContent = "Could not request permission: " + (err && err.message ? err.message : err);
+    $("perm-error").textContent = "Toestemming vragen lukte niet: " + (err && err.message ? err.message : err);
     return;
   }
   startListening();
   $("btn-perm").disabled = true;
-  $("btn-perm").textContent = "Waiting for compass…";
+  $("btn-perm").textContent = "Wachten op kompas…";
   const t0 = Date.now();
   const poll = setInterval(() => {
     if (state.gotEvent) { clearInterval(poll); beginTrials(); }
     else if (Date.now() - t0 > 3000) {
       clearInterval(poll);
       $("btn-perm").disabled = false;
-      $("btn-perm").textContent = "Try again";
+      $("btn-perm").textContent = "Nog een keer proberen";
       $("perm-warn").style.display = "block";
     }
   }, 100);
 }
 
-// ---------- game flow ----------
+// ---------- wijzerplaat ----------
+// Alleen streepjes in een regelmatig patroon, zodat je niet ziet waar het noorden is.
+function buildDial() {
+  let html = "";
+  for (let i = 0; i < 36; i++) {
+    const a = toRad(i * 10);
+    const major = i % 3 === 0;
+    const r1 = major ? 76 : 82, r2 = 90;
+    const x1 = 100 + r1 * Math.sin(a), y1 = 100 - r1 * Math.cos(a);
+    const x2 = 100 + r2 * Math.sin(a), y2 = 100 - r2 * Math.cos(a);
+    html += `<line class="tick${major ? " major" : ""}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
+  }
+  $("dial-rot").innerHTML = html;
+}
+
+// ---------- spelverloop ----------
 function buildTrials() {
-  let list = CONFIG.landmarks.map(l => ({ name: l.name, trueBearing: bearing(CONFIG.venue, l) }));
+  let list = CONFIG.landmarks.map(l => ({
+    name: l.name, lat: l.lat, lon: l.lon,
+    trueBearing: bearing(CONFIG.venue, l),
+    dist: distance(CONFIG.venue, l),
+  }));
   if (CONFIG.shuffle) {
     for (let i = list.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -312,13 +391,19 @@ function beginTrials() {
   state.trials = buildTrials();
   state.results = [];
   state.idx = 0;
+  $("dots").innerHTML = state.trials.map(() => "<span></span>").join("");
   renderTrial();
   show("s-trial");
 }
 
 function renderTrial() {
   const t = state.trials[state.idx];
-  $("progress").textContent = `Landmark ${state.idx + 1} of ${state.trials.length}`;
+  const n = state.trials.length;
+  $("progress").textContent = `Plek ${state.idx + 1} van ${n}`;
+  $("bar-fill").style.width = `${(state.idx / n) * 100}%`;
+  [...$("dots").children].forEach((d, i) => {
+    d.className = i < state.idx ? "done" : i === state.idx ? "now" : "";
+  });
   $("landmark").textContent = t.name;
 }
 
@@ -327,12 +412,15 @@ function recordTrial() {
   const raw = currentRawHeading();
   const hdg = currentTrueHeading();
   if (hdg == null) {
-    $("hdg").textContent = "—";
-    return; // no heading yet, ignore tap
+    $("dial-hint").textContent = "Nog geen kompas… beweeg je telefoon even.";
+    return;
   }
   const err = signedDiff(hdg, t.trueBearing);
+  const guess = destination(CONFIG.venue, hdg, t.dist);
   state.results.push({
     name: t.name,
+    lat: t.lat, lon: t.lon,
+    guessLat: +guess.lat.toFixed(6), guessLon: +guess.lon.toFixed(6),
     trueBearing: +t.trueBearing.toFixed(1),
     rawHeading: +raw.toFixed(1),
     heading: +hdg.toFixed(1),
@@ -341,31 +429,32 @@ function recordTrial() {
     t: new Date().toISOString(),
   });
   state.idx++;
-  if (state.idx < state.trials.length) {
-    renderTrial();
-  } else {
-    showResults();
-  }
+  if (state.idx < state.trials.length) renderTrial();
+  else showResults();
 }
 
 function gradeFor(mae) {
-  if (mae < 10) return "Human compass. Suspiciously good.";
-  if (mae < 20) return "Excellent sense of direction.";
-  if (mae < 35) return "Solid. You'd find your way home.";
-  if (mae < 60) return "Hmm. Maybe follow someone else.";
-  return "Completely lost. Beautiful.";
+  if (mae < 10) return ["🧭", "Menselijk kompas!", "Verdacht goed. Heb je stiekem gespiekt?"];
+  if (mae < 20) return ["🌟", "Uitstekend richtingsgevoel!", "Jij mag voortaan de weg wijzen."];
+  if (mae < 35) return ["👍", "Prima gedaan!", "Je komt zeker thuis. Meestal."];
+  if (mae < 60) return ["🤔", "Hmm…", "Misschien toch maar achter iemand anders aan lopen."];
+  return ["🙈", "Compleet verdwaald!", "Prachtig. Volgende keer navigatie aan."];
 }
 
 function showResults() {
   const mae = state.results.reduce((s, r) => s + r.absError, 0) / state.results.length;
-  $("mean").textContent = mae.toFixed(1) + "°";
-  $("grade").textContent = gradeFor(mae);
-  $("results-body").innerHTML = state.results.map(r => {
-    const sign = r.error > 0 ? "+" : "";
+  const [emoji, title, sub] = gradeFor(mae);
+  $("result-emoji").textContent = emoji;
+  $("result-title").textContent = title;
+  $("mean").textContent = mae.toFixed(0) + "°";
+  $("grade").textContent = sub;
+  $("results-body").innerHTML = state.results.map((r, i) => {
     const col = r.absError < 20 ? "var(--good)" : r.absError < 45 ? "var(--fg)" : "var(--bad)";
-    return `<tr><td>${escapeHtml(r.name)}</td><td class="num" style="color:${col}">${sign}${r.error.toFixed(0)}°</td></tr>`;
+    return `<tr data-i="${i}"><td>${escapeHtml(r.name)}</td><td class="num" style="color:${col}">${r.absError.toFixed(0)}°</td></tr>`;
   }).join("");
   show("s-results");
+  state.selected = null;
+  renderMap();
 
   state.lastPayload = {
     name: state.name,
@@ -380,18 +469,69 @@ function showResults() {
   sendResults();
 }
 
+// ---------- kaart ----------
+function emojiIcon(emoji) {
+  return L.divIcon({ className: "lbl-marker", html: `<div>${emoji}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] });
+}
+
+function ensureMap() {
+  if (state.map) return;
+  if (typeof L === "undefined") { $("map").textContent = "Kaart kon niet laden (geen internet?)"; return; }
+  state.map = L.map("map", { zoomControl: true, attributionControl: true });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18, attribution: "© OpenStreetMap",
+  }).addTo(state.map);
+  state.mapLayer = L.layerGroup().addTo(state.map);
+}
+
+function renderMap() {
+  ensureMap();
+  if (!state.map) return;
+  const map = state.map, layer = state.mapLayer;
+  layer.clearLayers();
+  const v = [CONFIG.venue.lat, CONFIG.venue.lon];
+  const sel = state.selected;
+  const list = sel == null ? state.results : [state.results[sel]];
+  const bounds = [v];
+
+  L.marker(v, { icon: emojiIcon("🏠") }).bindPopup("Hier sta je").addTo(layer);
+
+  list.forEach(r => {
+    const real = [r.lat, r.lon], guess = [r.guessLat, r.guessLon];
+    L.polyline([v, real], { color: "#22c55e", weight: 4, opacity: 0.9 }).addTo(layer);
+    L.polyline([v, guess], { color: "#ff6b9d", weight: 4, opacity: 0.9, dashArray: "8 8" }).addTo(layer);
+    L.marker(real, { icon: emojiIcon("📍") }).bindPopup(`<b>${escapeHtml(r.name)}</b><br>de echte plek`).addTo(layer);
+    L.marker(guess, { icon: emojiIcon("🤔") }).bindPopup(`<b>${escapeHtml(r.name)}</b><br>jouw gok, ${r.absError.toFixed(0)}° ernaast`).addTo(layer);
+    bounds.push(real, guess);
+  });
+
+  document.querySelectorAll("#results-body tr").forEach(tr => tr.classList.toggle("sel", +tr.dataset.i === sel));
+  // container is net zichtbaar geworden; Leaflet moet zijn maat opnieuw meten
+  setTimeout(() => {
+    map.invalidateSize();
+    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 15 });
+  }, 50);
+}
+
+function selectTrial(i) {
+  state.selected = (state.selected === i) ? null : i;
+  renderMap();
+  $("map").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
 
+// ---------- versturen ----------
 async function sendResults() {
   const status = $("send-status");
   $("btn-retry").style.display = "none";
   if (!CONFIG.endpoint || CONFIG.endpoint.includes("PASTE_YOUR")) {
-    status.textContent = "Not sent: no endpoint configured.";
+    status.textContent = "Niet verstuurd: geen endpoint ingesteld.";
     return;
   }
-  status.textContent = "Sending results…";
+  status.textContent = "Uitslag versturen…";
   try {
     await fetch(CONFIG.endpoint, {
       method: "POST",
@@ -399,9 +539,9 @@ async function sendResults() {
       headers: { "Content-Type": "text/plain" },
       body: JSON.stringify(state.lastPayload),
     });
-    status.textContent = "Results sent ✓";
+    status.textContent = "Uitslag opgeslagen ✓";
   } catch (err) {
-    status.textContent = "Sending failed. Check your connection.";
+    status.textContent = "Versturen mislukt. Check je verbinding.";
     $("btn-retry").style.display = "block";
   }
 }
@@ -410,18 +550,22 @@ function resetForNextPlayer() {
   state.name = "";
   state.results = [];
   state.idx = 0;
+  state.selected = null;
   $("name").value = "";
-  $("btn-start").disabled = true;
   $("send-status").textContent = "";
   show("s-name");
 }
 
-// ---------- live readout ----------
+// ---------- live wijzerplaat ----------
 function tick() {
   const h = currentTrueHeading();
   if ($("s-trial").classList.contains("active")) {
-    if (h == null) { $("hdg").textContent = "—"; $("cardinal").textContent = "waiting for compass…"; }
-    else { $("hdg").textContent = Math.round(h).toString().padStart(3, "0"); $("cardinal").textContent = cardinal(h); }
+    if (h == null) {
+      $("dial-hint").textContent = "wachten op kompas…";
+    } else {
+      $("dial-rot").style.transform = `rotate(${-h}deg)`; // plaat draait tegen je richting in, zoals een echt kompas
+      $("dial-hint").textContent = "";
+    }
   }
   if (DEBUG) renderDebug();
   requestAnimationFrame(tick);
@@ -439,11 +583,12 @@ function renderDebug() {
 }
 const fmt = v => v == null ? "—" : v.toFixed(1);
 
-// ---------- wiring ----------
-$("name").addEventListener("input", e => { $("btn-start").disabled = e.target.value.trim().length === 0; });
-$("name").addEventListener("keydown", e => { if (e.key === "Enter" && !$("btn-start").disabled) $("btn-start").click(); });
+// ---------- knoppen ----------
+$("name").addEventListener("keydown", e => { if (e.key === "Enter") $("btn-start").click(); });
 $("btn-start").addEventListener("click", () => {
-  state.name = $("name").value.trim();
+  const n = $("name").value.trim();
+  if (!n) { $("name").focus(); return; }
+  state.name = n;
   $("name").blur();
   if (state.gotEvent) beginTrials(); else show("s-perm");
 });
@@ -452,22 +597,25 @@ $("btn-continue-anyway").addEventListener("click", () => { startListening(); beg
 $("btn-point").addEventListener("click", recordTrial);
 $("btn-retry").addEventListener("click", sendResults);
 $("btn-again").addEventListener("click", resetForNextPlayer);
+$("btn-showall").addEventListener("click", () => { state.selected = null; renderMap(); });
+$("results-body").addEventListener("click", e => {
+  const tr = e.target.closest("tr[data-i]");
+  if (tr) selectTrial(+tr.dataset.i);
+});
 
 if (DEBUG) {
   const d = $("debug");
   d.style.display = "block";
   d.innerHTML = `<pre class="txt" style="margin:0 0 6px;white-space:pre-wrap"></pre>
-    <label><input type="checkbox" id="dbg-fake"> fake heading</label>
+    <label><input type="checkbox" id="dbg-fake"> nep-richting</label>
     <input type="range" id="dbg-range" min="0" max="359" value="0">`;
   const range = $("dbg-range"), cb = $("dbg-fake");
   const apply = () => { state.fake = cb.checked ? +range.value : null; };
   cb.addEventListener("change", apply);
   range.addEventListener("input", apply);
-  d.querySelector(".txt").addEventListener("dblclick", () => {
-    console.log("bearings", CONFIG.landmarks.map(l => [l.name, bearing(CONFIG.venue, l).toFixed(1)]));
-  });
 }
 
+buildDial();
 requestAnimationFrame(tick);
 </script>
 </body>
