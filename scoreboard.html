@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🏆 Scorebord</title>
+<style>
+  :root {
+    --bg: #e5ddd5;
+    --card: #ffffff;
+    --fg: #111b21;
+    --muted: #667781;
+    --accent: #25d366;
+    --accent-dark: #128c7e;
+    --accent2: #075e54;
+    --gold: #f5b301;
+    --silver: #a8b0b8;
+    --bronze: #c97b3a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4vh 6vw; gap: 3vh; }
+  h1 { margin: 0; font-size: 5vh; color: var(--accent2); text-align: center; }
+  h1 small { display: block; font-size: 2.2vh; color: var(--muted); font-weight: 500; margin-top: 0.5vh; }
+  .board { width: 100%; max-width: 1100px; display: flex; flex-direction: column-reverse; gap: 1.6vh; }
+  .row {
+    display: grid; grid-template-columns: 9vh 1fr auto; align-items: center; gap: 3vh;
+    background: var(--card); border-radius: 2.4vh; padding: 2vh 3.2vh;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    opacity: 0; transform: translateY(3vh); transition: opacity 0.5s, transform 0.5s;
+    min-height: 11vh;
+  }
+  .row.pos { opacity: 1; transform: none; }
+  .row .rank { font-size: 5.5vh; font-weight: 800; color: var(--muted); text-align: center; }
+  .row .name { font-size: 5vh; font-weight: 800; opacity: 0; transition: opacity 0.4s; }
+  .row .score { font-size: 5.5vh; font-weight: 800; color: var(--accent2); opacity: 0; transition: opacity 0.4s; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .row .score small { font-size: 2.2vh; color: var(--muted); font-weight: 600; margin-left: 1vh; }
+  .row.name .name, .row.score .score { opacity: 1; }
+  .row.r1 { background: #fff8dc; border: 3px solid var(--gold); transform: scale(1.04); }
+  .row.r1 .rank { color: var(--gold); }
+  .row.r2 .rank { color: var(--silver); }
+  .row.r3 .rank { color: var(--bronze); }
+  .row.r1.pos { transform: scale(1.04); }
+  .hint { color: var(--muted); font-size: 2vh; text-align: center; }
+  .hint kbd { background: #fff; border-radius: 0.6vh; padding: 0.2vh 0.8vh; border: 1px solid #ccc; font-family: inherit; }
+  #status { color: var(--muted); font-size: 2.2vh; text-align: center; min-height: 3vh; }
+  #blank { position: fixed; inset: 0; background: #000; display: none; z-index: 50; }
+  #blank.on { display: block; }
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 40; }
+  .winner-banner {
+    position: fixed; top: 2vh; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: #fff; font-weight: 800; font-size: 3.5vh;
+    padding: 1.5vh 4vh; border-radius: 999px; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    opacity: 0; transition: opacity 0.6s; z-index: 45;
+  }
+  .winner-banner.on { opacity: 1; }
+</style>
+</head>
+<body>
+
+<h1>🧭 Wijs het aan! <small id="sub">Gemiddelde fout in graden. Lager is beter.</small></h1>
+<div class="board" id="board"></div>
+<div id="status">Laden…</div>
+<div class="hint"><kbd>spatie</kbd> volgende &nbsp; <kbd>←</kbd> terug &nbsp; <kbd>b</kbd> zwart scherm &nbsp; <kbd>r</kbd> opnieuw laden</div>
+
+<div class="winner-banner" id="banner">🏆 Winnaar!</div>
+<canvas id="confetti"></canvas>
+<div id="blank"></div>
+
+<script>
+// =====================================================================
+//  CONFIG
+// =====================================================================
+const CONFIG = {
+  // Dezelfde Apps Script URL als in index.html
+  endpoint: "https://script.google.com/macros/s/AKfycbzcZZTXO92FK5n2vTTc4ayJYsnNnzCinmFlEWGWf5pocHUMRCEXfyg94SLXZnFT4KW2/exec",
+  // Strafgraden per plek die een team niet heeft gedaan
+  missingPenalty: 90,
+};
+// =====================================================================
+
+const $ = id => document.getElementById(id);
+const DEMO = new URLSearchParams(location.search).has("demo");
+
+// ---------- data ----------
+async function loadRows() {
+  if (DEMO) return demoRows();
+  const res = await fetch(CONFIG.endpoint + "?action=results");
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || "onbekende fout");
+  return data.rows;
+}
+
+function demoRows() {
+  const teams = ["De Kompasridders", "Team Verdwaald", "Oma's Navigatie"];
+  const rows = [];
+  teams.forEach((team, ti) => {
+    for (let i = 1; i <= 9; i++) {
+      rows.push({ team, sessionId: "demo" + ti, trialIndex: i, trialCount: 9,
+        landmark: "Plek " + i, absError: +(Math.random() * (20 + ti * 25)).toFixed(1) });
+    }
+  });
+  return rows;
+}
+
+// Groepeer per sessie, kies per teamnaam de sessie met de meeste wijzen (bij gelijk: de laatste).
+function computeTeams(rows) {
+  const sessions = {};
+  rows.forEach(r => {
+    const key = r.sessionId || r.team;
+    if (!sessions[key]) sessions[key] = { team: r.team, sessionId: key, trials: {}, trialCount: +r.trialCount || 0, last: "" };
+    const s = sessions[key];
+    s.trials[r.trialIndex] = +r.absError;     // dubbele posts overschrijven elkaar
+    s.trialCount = Math.max(s.trialCount, +r.trialCount || 0);
+    if (r.receivedAt > s.last) s.last = r.receivedAt;
+  });
+  const byTeam = {};
+  Object.values(sessions).forEach(s => {
+    const n = Object.keys(s.trials).length;
+    const cur = byTeam[s.team];
+    if (!cur || n > cur.n || (n === cur.n && s.last > cur.last)) byTeam[s.team] = { ...s, n };
+  });
+  return Object.values(byTeam).map(s => {
+    const errs = Object.values(s.trials);
+    const total = s.trialCount || errs.length;
+    const missing = Math.max(0, total - errs.length);
+    const sum = errs.reduce((a, b) => a + b, 0) + missing * CONFIG.missingPenalty;
+    return { team: s.team, done: errs.length, total, missing, mean: sum / total };
+  }).sort((a, b) => a.mean - b.mean);   // beste eerst; rank 1 = laagste fout
+}
+
+// ---------- weergave ----------
+let teams = [];
+let step = 0;          // aantal getoonde sub-stappen; elk team heeft 3 (positie, naam, score)
+let maxStep = 0;
+
+function render() {
+  const board = $("board");
+  board.innerHTML = "";
+  // flex column-reverse: eerste kind onderaan. We voegen slechtste eerst toe, zodat die onderaan staat.
+  const worstFirst = [...teams].reverse();
+  worstFirst.forEach((t, i) => {
+    const rank = teams.length - i;
+    const row = document.createElement("div");
+    row.className = "row r" + rank;
+    row.dataset.rank = rank;
+    row.innerHTML = `<div class="rank">${rank}</div>
+      <div class="name">${escapeHtml(t.team)}</div>
+      <div class="score">${t.mean.toFixed(1)}°${t.missing ? `<small>${t.done}/${t.total} plekken</small>` : ""}</div>`;
+    board.appendChild(row);
+  });
+  maxStep = teams.length * 3;
+  applyStep();
+}
+
+function applyStep() {
+  const rows = [...document.querySelectorAll(".row")];   // volgorde: slechtste eerst
+  rows.forEach((row, i) => {
+    const local = step - i * 3;   // hoeveel sub-stappen van dit team zijn onthuld
+    row.classList.toggle("pos", local >= 1);
+    row.classList.toggle("name", local >= 2);
+    row.classList.toggle("score", local >= 3);
+  });
+  const won = step >= maxStep && teams.length > 0;
+  $("banner").classList.toggle("on", won);
+  if (won && !confettiRunning) startConfetti();
+  if (!won) stopConfetti();
+  $("status").textContent = teams.length
+    ? (step === 0 ? `${teams.length} teams geladen. Druk op spatie.` : step >= maxStep ? "" : " ")
+    : "Nog geen resultaten.";
+}
+
+function next() { if (step < maxStep) { step++; applyStep(); } }
+function prev() { if (step > 0) { step--; applyStep(); } }
+
+async function reload() {
+  step = 0;
+  $("status").textContent = "Laden…";
+  try {
+    const rows = await loadRows();
+    teams = computeTeams(rows);
+    render();
+  } catch (err) {
+    $("status").textContent = "Laden mislukt: " + err.message;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+// ---------- confetti ----------
+let confettiRunning = false, confettiRaf = null, pieces = [];
+function startConfetti() {
+  const c = $("confetti"), ctx = c.getContext("2d");
+  c.width = innerWidth; c.height = innerHeight;
+  const colors = ["#25d366", "#128c7e", "#f5b301", "#ff6b6b", "#4dabf7", "#ffffff"];
+  pieces = Array.from({ length: 220 }, () => ({
+    x: Math.random() * c.width, y: -20 - Math.random() * c.height,
+    w: 8 + Math.random() * 8, h: 6 + Math.random() * 6,
+    vy: 2 + Math.random() * 3, vx: -1 + Math.random() * 2,
+    rot: Math.random() * Math.PI, vr: -0.1 + Math.random() * 0.2,
+    color: colors[Math.floor(Math.random() * colors.length)],
+  }));
+  confettiRunning = true;
+  const frame = () => {
+    ctx.clearRect(0, 0, c.width, c.height);
+    pieces.forEach(p => {
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      if (p.y > c.height + 20) { p.y = -20; p.x = Math.random() * c.width; }
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.color; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
+    });
+    confettiRaf = requestAnimationFrame(frame);
+  };
+  frame();
+}
+function stopConfetti() {
+  if (!confettiRunning) return;
+  cancelAnimationFrame(confettiRaf);
+  confettiRunning = false;
+  const c = $("confetti"); c.getContext("2d").clearRect(0, 0, c.width, c.height);
+}
+
+// ---------- toetsen ----------
+document.addEventListener("keydown", e => {
+  if (e.key === " " || e.key === "ArrowRight" || e.key === "Enter") { e.preventDefault(); next(); }
+  else if (e.key === "ArrowLeft" || e.key === "Backspace") { e.preventDefault(); prev(); }
+  else if (e.key === "b" || e.key === "B") $("blank").classList.toggle("on");
+  else if (e.key === "r" || e.key === "R") reload();
+});
+document.addEventListener("click", e => { if (e.target.id === "blank") $("blank").classList.remove("on"); else next(); });
+
+reload();
+</script>
+</body>
+</html>

@@ -35,7 +35,7 @@ close by changes too much depending on where in the room a guest is standing.
 5. Paste it into `CONFIG.endpoint` in `index.html`.
 
 Opening the `/exec` URL in a browser should show `{"ok":true,...}`.
-Each finished game appends one row per landmark to a sheet called `results`.
+Every single pointing attempt is posted immediately as one row in a sheet called `results`, so you can watch teams progress live. Compute a team's mean in the Sheet, e.g. `=AVERAGEIF(results!B:B; "Team X"; results!J:J)` or a pivot table on `team` with average of `absError`.
 
 If you change `Code.gs` later, you must create a **new deployment** (or edit the
 existing one to a new version) for the change to go live.
@@ -59,4 +59,4 @@ provides that for free.
   with a fake-heading slider so you can test the scoring without a phone.
 - Phone compasses can be off by 5 to 15° depending on the device and nearby metal.
   Guests can improve accuracy by waving the phone in a figure-eight before starting.
-- If nothing is sent, results are also kept in `localStorage` under `pointing-game-last`.
+- Progress is saved on the phone after every attempt. If the page reloads, the app offers to continue where the team left off, and posts that failed (no connection) are retried automatically.

@@ -4,20 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#1a0b2e">
+<meta name="theme-color" content="#075e54">
 <title>🧭 Wijs het aan!</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
   :root {
-    --bg: #1a0b2e;
-    --card: rgba(255,255,255,0.08);
-    --fg: #fff7ec;
-    --muted: #c9b8e0;
-    --accent: #ff6b9d;
-    --accent2: #ffc857;
-    --good: #5eead4;
-    --bad: #ff7b7b;
+    --bg: #e5ddd5;          /* WhatsApp chat-achtergrond */
+    --card: #ffffff;
+    --fg: #111b21;
+    --muted: #667781;
+    --accent: #25d366;      /* WhatsApp groen */
+    --accent-dark: #128c7e;
+    --accent2: #075e54;     /* donkergroen, voor koppen */
+    --good: #128c7e;
+    --bad: #d32f2f;
   }
   * { box-sizing: border-box; }
   html, body {
@@ -31,8 +32,7 @@
   body {
     display: flex; flex-direction: column;
     min-height: 100vh; min-height: 100dvh;
-    background: radial-gradient(circle at 20% 10%, #4a1d7a 0%, var(--bg) 50%),
-                radial-gradient(circle at 80% 90%, #7a1d4a 0%, transparent 50%), var(--bg);
+    background: var(--bg);
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
   section.screen {
@@ -49,13 +49,14 @@
   h2 { font-size: 1.15rem; margin: 0; color: var(--muted); font-weight: 500; text-align: center; }
   p { margin: 0; line-height: 1.5; color: var(--muted); text-align: center; }
   .emoji-big { font-size: 4rem; text-align: center; line-height: 1; }
+  .rules { background: var(--card); border-radius: 14px; padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; font-size: 1.1rem; font-weight: 600; color: var(--accent2); box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
   .landmark {
     font-size: 2.3rem; font-weight: 800; text-align: center; line-height: 1.15;
     color: var(--accent2);
   }
   input[type=text] {
     width: 100%; font-size: 1.4rem; padding: 16px;
-    border-radius: 14px; border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 14px; border: 2px solid #d1d7db;
     background: var(--card); color: var(--fg); outline: none;
     -webkit-user-select: text; user-select: text;
   }
@@ -63,25 +64,25 @@
   button {
     width: 100%; min-height: 72px; font-size: 1.35rem; font-weight: 800;
     border: none; border-radius: 18px; cursor: pointer;
-    background: linear-gradient(135deg, var(--accent), #ff8c5a); color: #fff;
-    box-shadow: 0 6px 20px rgba(255,107,157,0.35);
+    background: var(--accent); color: #fff;
+    box-shadow: 0 4px 14px rgba(37,211,102,0.35);
     touch-action: manipulation; -webkit-tap-highlight-color: transparent;
   }
-  button:active { transform: scale(0.97); box-shadow: 0 3px 10px rgba(255,107,157,0.3); }
+  button:active { transform: scale(0.97); background: var(--accent-dark); }
   button:disabled { opacity: 0.4; cursor: default; box-shadow: none; }
-  button.secondary { background: var(--card); color: var(--fg); font-weight: 600; min-height: 56px; font-size: 1.05rem; box-shadow: none; }
+  button.secondary { background: var(--card); color: var(--accent2); font-weight: 600; min-height: 56px; font-size: 1.05rem; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
   .big { min-height: 110px; font-size: 1.6rem; }
   .status { text-align: center; color: var(--muted); min-height: 1.4em; }
   .error { color: var(--bad); text-align: center; }
-  .warn { background: rgba(255,200,87,0.12); border: 1px solid rgba(255,200,87,0.4); color: var(--accent2); border-radius: 14px; padding: 12px; text-align: center; }
+  .warn { background: #fff5c4; border: 1px solid #ffe082; color: #5d4a00; border-radius: 14px; padding: 12px; text-align: center; }
 
   /* voortgang */
   .progress { text-align: center; color: var(--muted); font-size: 1rem; font-weight: 600; }
-  .bar { height: 10px; background: rgba(255,255,255,0.12); border-radius: 999px; overflow: hidden; }
-  .bar > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 999px; transition: width 0.3s ease; }
+  .bar { height: 10px; background: rgba(0,0,0,0.1); border-radius: 999px; overflow: hidden; }
+  .bar > div { height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width 0.3s ease; }
   .dots { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
-  .dots span { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.15); }
-  .dots span.done { background: var(--accent2); }
+  .dots span { width: 12px; height: 12px; border-radius: 50%; background: rgba(0,0,0,0.12); }
+  .dots span.done { background: var(--accent-dark); }
   .dots span.now { background: var(--accent); transform: scale(1.3); }
 
   /* wijzerplaat */
@@ -89,8 +90,8 @@
   .dial { width: min(60vw, 240px); height: min(60vw, 240px); }
   .dial .rot { transform-origin: 50% 50%; will-change: transform; }
   .dial .tick { stroke: var(--muted); stroke-width: 2; stroke-linecap: round; opacity: 0.75; }
-  .dial .tick.major { stroke: var(--fg); stroke-width: 3; opacity: 0.9; }
-  .dial .ring { fill: none; stroke: rgba(255,255,255,0.18); stroke-width: 2; }
+  .dial .tick.major { stroke: var(--accent2); stroke-width: 3; opacity: 0.9; }
+  .dial .ring { fill: #fff; stroke: rgba(0,0,0,0.12); stroke-width: 2; }
   .dial .center { fill: var(--accent2); }
   .dial .pointer { fill: var(--accent); }
   .dial-hint { text-align: center; color: var(--muted); font-size: 0.95rem; min-height: 1.3em; }
@@ -101,9 +102,9 @@
   th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
   tbody tr { cursor: pointer; }
-  tbody tr.sel { background: rgba(255,200,87,0.18); }
+  tbody tr.sel { background: #d9fdd3; }  /* WhatsApp eigen-bericht groen */
   tbody tr.sel td:first-child::before { content: "👉 "; }
-  tr + tr td { border-top: 1px solid rgba(255,255,255,0.08); }
+  tr + tr td { border-top: 1px solid rgba(0,0,0,0.06); }
   .score { text-align: center; }
   .score .val { font-size: 4rem; font-weight: 800; line-height: 1; color: var(--accent2); }
   .score .lbl { color: var(--muted); margin-top: 6px; }
@@ -128,10 +129,20 @@
 <!-- 1. Naam -->
 <section class="screen active" id="s-name">
   <div class="emoji-big">🧭🎉</div>
-  <h1>Wijs het aan!</h1>
-  <p>Hoe goed ken jij de buurt? Wijs met je telefoon naar bekende plekken en ontdek of je een menselijk kompas bent… of hopeloos verdwaald.</p>
-  <input type="text" id="name" placeholder="Hoe heet je?" autocomplete="off" autocapitalize="words" maxlength="40">
-  <button id="btn-start">Ik doe mee! 🙋</button>
+  <div class="warn" id="resume-box" style="display:none">
+    <div id="resume-text"></div>
+    <br>
+    <button id="btn-resume">Doorgaan ▶️</button>
+    <br><br>
+    <button class="secondary" id="btn-restart">Nee, opnieuw beginnen</button>
+  </div>
+  <div class="rules">
+    <div>📵 Geen kompas-app</div>
+    <div>🗺️ Geen kaarten-app</div>
+    <div>🤝 Overleg met je team</div>
+  </div>
+  <input type="text" id="name" placeholder="Naam van jullie team" autocomplete="off" autocapitalize="words" maxlength="40">
+  <button id="btn-start">Wij doen mee! 🙋</button>
 </section>
 
 <!-- 2. Toestemming -->
@@ -171,7 +182,7 @@
 <!-- 4. Uitslag -->
 <section class="screen top" id="s-results">
   <div class="emoji-big" id="result-emoji">🏆</div>
-  <h1 id="result-title">Jouw uitslag</h1>
+  <h1 id="result-title">Jullie uitslag</h1>
   <div class="score">
     <div class="val" id="mean"></div>
     <div class="lbl">graden ernaast (gemiddeld)</div>
@@ -179,8 +190,8 @@
   <div class="grade" id="grade"></div>
   <div id="map"></div>
   <div class="legend">
-    <span><i style="background:#22c55e"></i>echte richting</span>
-    <span><i style="background:#ff6b9d"></i>jouw gok</span>
+    <span><i style="background:#128c7e"></i>echte richting</span>
+    <span><i style="background:#e53935"></i>jullie gok</span>
   </div>
   <p>Tik op een plek in de lijst om die alleen te zien.</p>
   <table>
@@ -190,7 +201,6 @@
   <button class="secondary" id="btn-showall">Alles op de kaart</button>
   <div class="status" id="send-status"></div>
   <button class="secondary" id="btn-retry" style="display:none">Opnieuw versturen</button>
-  <button id="btn-again">Volgende speler 🎉</button>
 </section>
 
 <div id="debug"></div>
@@ -201,10 +211,10 @@
 // =====================================================================
 const CONFIG = {
   // Google Apps Script web-app URL (eindigt op /exec). Zie README.md.
-  endpoint: "https://script.google.com/macros/s/PASTE_YOUR_DEPLOYMENT_ID/exec",
+  endpoint: "https://script.google.com/macros/s/AKfycbzcZZTXO92FK5n2vTTc4ayJYsnNnzCinmFlEWGWf5pocHUMRCEXfyg94SLXZnFT4KW2/exec",
 
   // Waar het feest is. Alle richtingen worden vanaf dit punt berekend.
-  venue: { lat: 52.0036609249545, lon: 5.900240763615161 },
+  venue: { lat: 52.0036705010981, lon: 5.900167982645029 },
 
   // Magnetische declinatie bij Arnhem in graden (oost positief).
   declination: 2.0,
@@ -217,9 +227,9 @@ const CONFIG = {
     { name: "Ingang Burgers' Zoo",      lat: 52.00794439178726,  lon: 5.898552905279525 },
     { name: "Sportcentrum Papendal",    lat: 52.014680361794994, lon: 5.830072551886468 },
     { name: "Arnhem Centraal",          lat: 51.98425853573312,  lon: 5.90050763830271 },
-    { name: "Apeldoorn",                lat: 52.210529408529304, lon: 5.969901640682823 },
-    { name: "Nijmegen",                 lat: 51.844055147652604, lon: 5.860285507879977 },
-    { name: "Utrecht",                  lat: 52.09652528516114,  lon: 5.127011547400829 },
+    { name: "Winkelcentrum Presikhaaf", lat: 51.98383756700917,  lon: 5.948522044594798 },
+    { name: "Hoogte 80",                lat: 52.00164695984213,  lon: 5.9329336955606315 },
+    { name: "Kröller-Müller Museum",    lat: 52.0990094609962,   lon: 5.8306052045365595 },
   ],
 
   // Volgorde per speler husselen.
@@ -267,9 +277,12 @@ const state = {
   gotEvent: false,
   listening: false,
   fake: null,
-  lastPayload: null,
+  sessionId: null,   // uniek per team-poging, zodat twee teams met dezelfde naam uit elkaar te houden zijn
+  done: false,
+  pending: [],       // nog niet verstuurde wijs-rijen
   map: null, mapLayer: null, selected: null,
 };
+const SAVE_KEY = "wijs-het-aan-progress";
 
 const DEBUG = new URLSearchParams(location.search).has("debug");
 
@@ -388,12 +401,42 @@ function buildTrials() {
 }
 
 function beginTrials() {
-  state.trials = buildTrials();
-  state.results = [];
-  state.idx = 0;
+  if (!state.trials.length) {           // nieuw spel; bij hervatten staan trials al klaar
+    state.trials = buildTrials();
+    state.results = [];
+    state.idx = 0;
+    state.done = false;
+    state.sessionId = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    saveProgress();
+  }
   $("dots").innerHTML = state.trials.map(() => "<span></span>").join("");
   renderTrial();
   show("s-trial");
+}
+
+// ---------- voortgang bewaren ----------
+function saveProgress() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      name: state.name, sessionId: state.sessionId, trials: state.trials,
+      results: state.results, idx: state.idx, done: state.done, pending: state.pending,
+    }));
+  } catch (_) {}
+}
+function loadProgress() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (!s || !s.name || !Array.isArray(s.trials) || !s.trials.length) return null;
+    return s;
+  } catch (_) { return null; }
+}
+function clearProgress() {
+  try { localStorage.removeItem(SAVE_KEY); } catch (_) {}
+}
+function applySaved(s) {
+  state.name = s.name; state.sessionId = s.sessionId; state.trials = s.trials;
+  state.results = s.results || []; state.idx = s.idx || 0; state.done = !!s.done;
+  state.pending = s.pending || [];
 }
 
 function renderTrial() {
@@ -417,7 +460,7 @@ function recordTrial() {
   }
   const err = signedDiff(hdg, t.trueBearing);
   const guess = destination(CONFIG.venue, hdg, t.dist);
-  state.results.push({
+  const result = {
     name: t.name,
     lat: t.lat, lon: t.lon,
     guessLat: +guess.lat.toFixed(6), guessLon: +guess.lon.toFixed(6),
@@ -427,16 +470,31 @@ function recordTrial() {
     error: +err.toFixed(1),
     absError: +Math.abs(err).toFixed(1),
     t: new Date().toISOString(),
-  });
+  };
+  state.results.push(result);
   state.idx++;
-  if (state.idx < state.trials.length) renderTrial();
+  // één rij per wijs: in de wachtrij, opslaan, versturen
+  state.pending.push({
+    team: state.name,
+    sessionId: state.sessionId,
+    trialIndex: state.idx,               // 1-gebaseerd
+    trialCount: state.trials.length,
+    userAgent: navigator.userAgent,
+    declination: CONFIG.declination,
+    venue: CONFIG.venue,
+    trial: result,
+  });
+  if (state.idx >= state.trials.length) state.done = true;
+  saveProgress();
+  flushQueue();
+  if (!state.done) renderTrial();
   else showResults();
 }
 
 function gradeFor(mae) {
-  if (mae < 10) return ["🧭", "Menselijk kompas!", "Verdacht goed. Heb je stiekem gespiekt?"];
-  if (mae < 20) return ["🌟", "Uitstekend richtingsgevoel!", "Jij mag voortaan de weg wijzen."];
-  if (mae < 35) return ["👍", "Prima gedaan!", "Je komt zeker thuis. Meestal."];
+  if (mae < 10) return ["🧭", "Menselijk kompas!", "Verdacht goed. Hebben jullie stiekem gespiekt?"];
+  if (mae < 20) return ["🌟", "Uitstekend richtingsgevoel!", "Jullie mogen voortaan de weg wijzen."];
+  if (mae < 35) return ["👍", "Prima gedaan!", "Jullie komen zeker thuis. Meestal."];
   if (mae < 60) return ["🤔", "Hmm…", "Misschien toch maar achter iemand anders aan lopen."];
   return ["🙈", "Compleet verdwaald!", "Prachtig. Volgende keer navigatie aan."];
 }
@@ -455,18 +513,7 @@ function showResults() {
   show("s-results");
   state.selected = null;
   renderMap();
-
-  state.lastPayload = {
-    name: state.name,
-    timestamp: new Date().toISOString(),
-    userAgent: navigator.userAgent,
-    declination: CONFIG.declination,
-    venue: CONFIG.venue,
-    meanAbsError: +mae.toFixed(2),
-    trials: state.results,
-  };
-  try { localStorage.setItem("pointing-game-last", JSON.stringify(state.lastPayload)); } catch (_) {}
-  sendResults();
+  renderSendStatus();
 }
 
 // ---------- kaart ----------
@@ -494,14 +541,14 @@ function renderMap() {
   const list = sel == null ? state.results : [state.results[sel]];
   const bounds = [v];
 
-  L.marker(v, { icon: emojiIcon("🏠") }).bindPopup("Hier sta je").addTo(layer);
+  L.marker(v, { icon: emojiIcon("🏠") }).bindPopup("Hier staan jullie").addTo(layer);
 
   list.forEach(r => {
     const real = [r.lat, r.lon], guess = [r.guessLat, r.guessLon];
-    L.polyline([v, real], { color: "#22c55e", weight: 4, opacity: 0.9 }).addTo(layer);
-    L.polyline([v, guess], { color: "#ff6b9d", weight: 4, opacity: 0.9, dashArray: "8 8" }).addTo(layer);
+    L.polyline([v, real], { color: "#128c7e", weight: 4, opacity: 0.9 }).addTo(layer);
+    L.polyline([v, guess], { color: "#e53935", weight: 4, opacity: 0.9, dashArray: "8 8" }).addTo(layer);
     L.marker(real, { icon: emojiIcon("📍") }).bindPopup(`<b>${escapeHtml(r.name)}</b><br>de echte plek`).addTo(layer);
-    L.marker(guess, { icon: emojiIcon("🤔") }).bindPopup(`<b>${escapeHtml(r.name)}</b><br>jouw gok, ${r.absError.toFixed(0)}° ernaast`).addTo(layer);
+    L.marker(guess, { icon: emojiIcon("🤔") }).bindPopup(`<b>${escapeHtml(r.name)}</b><br>jullie gok, ${r.absError.toFixed(0)}° ernaast`).addTo(layer);
     bounds.push(real, guess);
   });
 
@@ -524,36 +571,42 @@ function escapeHtml(s) {
 }
 
 // ---------- versturen ----------
-async function sendResults() {
-  const status = $("send-status");
-  $("btn-retry").style.display = "none";
-  if (!CONFIG.endpoint || CONFIG.endpoint.includes("PASTE_YOUR")) {
-    status.textContent = "Niet verstuurd: geen endpoint ingesteld.";
-    return;
+// Elke wijs is één POST. Mislukte posts blijven in state.pending staan en gaan
+// mee bij de volgende wijs, bij "Opnieuw versturen", of na herladen.
+let flushing = false;
+async function flushQueue() {
+  if (flushing) return;
+  if (!CONFIG.endpoint || CONFIG.endpoint.includes("PASTE_YOUR")) { renderSendStatus(); return; }
+  flushing = true;
+  renderSendStatus();
+  while (state.pending.length) {
+    const item = state.pending[0];
+    try {
+      await fetch(CONFIG.endpoint, {
+        method: "POST", mode: "no-cors",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(item),
+      });
+      state.pending.shift();
+      saveProgress();
+    } catch (err) {
+      break; // geen verbinding; later opnieuw
+    }
   }
-  status.textContent = "Uitslag versturen…";
-  try {
-    await fetch(CONFIG.endpoint, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify(state.lastPayload),
-    });
-    status.textContent = "Uitslag opgeslagen ✓";
-  } catch (err) {
-    status.textContent = "Versturen mislukt. Check je verbinding.";
-    $("btn-retry").style.display = "block";
-  }
+  flushing = false;
+  renderSendStatus();
 }
 
-function resetForNextPlayer() {
-  state.name = "";
-  state.results = [];
-  state.idx = 0;
-  state.selected = null;
-  $("name").value = "";
-  $("send-status").textContent = "";
-  show("s-name");
+function renderSendStatus() {
+  const status = $("send-status"), retry = $("btn-retry");
+  if (!$("s-results").classList.contains("active")) return;
+  if (!CONFIG.endpoint || CONFIG.endpoint.includes("PASTE_YOUR")) {
+    status.textContent = "Niet verstuurd: geen endpoint ingesteld."; retry.style.display = "none"; return;
+  }
+  const n = state.pending.length;
+  if (flushing) { status.textContent = "Versturen…"; retry.style.display = "none"; }
+  else if (n === 0) { status.textContent = "Alles opgeslagen ✓"; retry.style.display = "none"; }
+  else { status.textContent = `${n} van ${state.trials.length} nog niet verstuurd. Check je verbinding.`; retry.style.display = "block"; }
 }
 
 // ---------- live wijzerplaat ----------
@@ -588,15 +641,24 @@ $("name").addEventListener("keydown", e => { if (e.key === "Enter") $("btn-start
 $("btn-start").addEventListener("click", () => {
   const n = $("name").value.trim();
   if (!n) { $("name").focus(); return; }
-  state.name = n;
+  clearProgress();
+  state.name = n; state.trials = []; state.results = []; state.idx = 0; state.done = false; state.pending = [];
   $("name").blur();
   if (state.gotEvent) beginTrials(); else show("s-perm");
+});
+$("btn-resume").addEventListener("click", () => {
+  if (state.gotEvent) beginTrials(); else show("s-perm");
+});
+$("btn-restart").addEventListener("click", () => {
+  clearProgress();
+  state.trials = []; state.results = []; state.idx = 0; state.done = false; state.pending = [];
+  $("resume-box").style.display = "none";
+  $("name").focus();
 });
 $("btn-perm").addEventListener("click", requestCompass);
 $("btn-continue-anyway").addEventListener("click", () => { startListening(); beginTrials(); });
 $("btn-point").addEventListener("click", recordTrial);
-$("btn-retry").addEventListener("click", sendResults);
-$("btn-again").addEventListener("click", resetForNextPlayer);
+$("btn-retry").addEventListener("click", flushQueue);
 $("btn-showall").addEventListener("click", () => { state.selected = null; renderMap(); });
 $("results-body").addEventListener("click", e => {
   const tr = e.target.closest("tr[data-i]");
@@ -616,6 +678,21 @@ if (DEBUG) {
 }
 
 buildDial();
+
+// Bij (her)laden: was er een spel bezig of net afgerond?
+(function restore() {
+  const s = loadProgress();
+  if (!s) return;
+  applySaved(s);
+  if (state.done) {
+    showResults();       // uitslag opnieuw tonen, kaart en al
+    flushQueue();
+  } else {
+    $("resume-text").innerHTML = `<b>${escapeHtml(state.name)}</b> was bezig, bij plek ${state.idx + 1} van ${state.trials.length}. Doorgaan?`;
+    $("resume-box").style.display = "block";
+  }
+})();
+
 requestAnimationFrame(tick);
 </script>
 </body>
