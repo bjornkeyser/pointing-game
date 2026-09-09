@@ -19,7 +19,7 @@ Open `index.html` and edit the `CONFIG` block at the top of the `<script>`:
 - `endpoint` – the Apps Script URL from step 2.
 - `shuffle` – randomise landmark order per player.
 
-The UI is in Dutch. The results screen shows a map (Leaflet + OpenStreetMap tiles, loaded from a CDN, so guests need internet).
+The UI is in Dutch. Phones never show a score: after the last landmark the team sees a "Klaar!" screen, and the ranking is revealed on a TV with `scoreboard.html` (space bar steps through the countdown, `?demo=1` shows fake teams for rehearsal).
 
 Pick landmarks that are far away (a kilometre or more). The bearing to something
 close by changes too much depending on where in the room a guest is standing.

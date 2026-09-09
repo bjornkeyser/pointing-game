@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>🏆 Scorebord</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
   :root {
     --bg: #e5ddd5;
@@ -16,33 +18,48 @@
     --gold: #f5b301;
     --silver: #a8b0b8;
     --bronze: #c97b3a;
+    --real: #128c7e;
+    --guess: #e53935;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
-  body { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4vh 6vw; gap: 3vh; }
-  h1 { margin: 0; font-size: 5vh; color: var(--accent2); text-align: center; }
-  h1 small { display: block; font-size: 2.2vh; color: var(--muted); font-weight: 500; margin-top: 0.5vh; }
-  .board { width: 100%; max-width: 1100px; display: flex; flex-direction: column-reverse; gap: 1.6vh; }
-  .row {
-    display: grid; grid-template-columns: 9vh 1fr auto; align-items: center; gap: 3vh;
-    background: var(--card); border-radius: 2.4vh; padding: 2vh 3.2vh;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    opacity: 0; transform: translateY(3vh); transition: opacity 0.5s, transform 0.5s;
-    min-height: 11vh;
-  }
-  .row.pos { opacity: 1; transform: none; }
-  .row .rank { font-size: 5.5vh; font-weight: 800; color: var(--muted); text-align: center; }
-  .row .name { font-size: 5vh; font-weight: 800; opacity: 0; transition: opacity 0.4s; }
-  .row .score { font-size: 5.5vh; font-weight: 800; color: var(--accent2); opacity: 0; transition: opacity 0.4s; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .row .score small { font-size: 2.2vh; color: var(--muted); font-weight: 600; margin-left: 1vh; }
-  .row.name .name, .row.score .score { opacity: 1; }
-  .row.r1 { background: #fff8dc; border: 3px solid var(--gold); transform: scale(1.04); }
-  .row.r1 .rank { color: var(--gold); }
-  .row.r2 .rank { color: var(--silver); }
-  .row.r3 .rank { color: var(--bronze); }
-  .row.r1.pos { transform: scale(1.04); }
-  .hint { color: var(--muted); font-size: 2vh; text-align: center; }
+  body { display: flex; flex-direction: column; padding: 3vh 4vw; gap: 2vh; }
+  h1 { margin: 0; font-size: 4.5vh; color: var(--accent2); text-align: center; }
+  h1 small { display: block; font-size: 2vh; color: var(--muted); font-weight: 500; margin-top: 0.4vh; }
+  .phase { display: none; flex: 1; min-height: 0; }
+  .phase.active { display: flex; }
+
+  /* team-fase */
+  #p-team { gap: 3vw; }
+  #map { flex: 1.4; border-radius: 2.4vh; overflow: hidden; background: #ddd; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .side { flex: 1; display: flex; flex-direction: column; gap: 2vh; min-width: 0; }
+  .teamcard { background: var(--card); border-radius: 2.4vh; padding: 2.5vh 3vh; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .teamcard .tname { font-size: 5vh; font-weight: 800; color: var(--accent2); line-height: 1.1; }
+  .teamcard .tmean { font-size: 7vh; font-weight: 800; line-height: 1.1; margin-top: 1vh; font-variant-numeric: tabular-nums; }
+  .teamcard .tmean small { font-size: 2vh; color: var(--muted); font-weight: 600; margin-left: 1vh; }
+  .teamcard .counter { color: var(--muted); font-size: 2.6vh; font-weight: 800; }
+  .list { background: var(--card); border-radius: 2.4vh; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); flex: 1; min-height: 0; overflow-y: auto; }
+  .list .item { display: flex; justify-content: space-between; align-items: center; padding: 1.4vh 3vh; font-size: 2.6vh; cursor: pointer; border-top: 1px solid rgba(0,0,0,0.06); }
+  .list .item:first-child { border-top: none; }
+  .list .item.sel { background: #d9fdd3; font-weight: 800; }
+  .list .item.sel::before { content: "👉 "; }
+  .list .item .n { flex: 1; }
+  .list .item .e { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent2); }
+  .list .item .e.good { color: var(--accent-dark); }
+  .list .item .e.bad { color: var(--guess); }
+  .legend { display: flex; gap: 3vh; font-size: 2vh; color: var(--muted); justify-content: center; }
+  .legend i { display: inline-block; width: 3vh; height: 0.6vh; border-radius: 1vh; vertical-align: middle; margin-right: 1vh; }
+  .lbl-marker { background: none; border: none; }
+  .lbl-marker div { font-size: 3.2vh; line-height: 1; text-align: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); }
+  .leaflet-container { font-family: inherit; font-size: 2vh; }
+
+  .teamcard.r1 { background: #fff8dc; border: 3px solid var(--gold); }
+  .teamcard .counter.r1 { color: var(--gold); }
+  .teamcard .counter.r2 { color: var(--silver); }
+  .teamcard .counter.r3 { color: var(--bronze); }
+
+  .hint { color: var(--muted); font-size: 1.9vh; text-align: center; }
   .hint kbd { background: #fff; border-radius: 0.6vh; padding: 0.2vh 0.8vh; border: 1px solid #ccc; font-family: inherit; }
   #status { color: var(--muted); font-size: 2.2vh; text-align: center; min-height: 3vh; }
   #blank { position: fixed; inset: 0; background: #000; display: none; z-index: 50; }
@@ -59,10 +76,34 @@
 </head>
 <body>
 
-<h1>🧭 Wijs het aan! <small id="sub">Gemiddelde fout in graden. Lager is beter.</small></h1>
-<div class="board" id="board"></div>
+<h1>🧭 Wijs het aan! <small id="sub"></small></h1>
+
+<!-- countdown: team voor team, slechtste eerst -->
+<div class="phase active" id="p-team">
+  <div id="map"></div>
+  <div class="side">
+    <div class="teamcard">
+      <div class="counter" id="t-counter"></div>
+      <div class="tname" id="t-name"></div>
+      <div class="tmean" id="t-mean"></div>
+    </div>
+    <div class="list" id="t-list"></div>
+    <div class="legend">
+      <span><i style="background:var(--real)"></i>echte richting</span>
+      <span><i style="background:var(--guess)"></i>gok</span>
+    </div>
+  </div>
+</div>
+
 <div id="status">Laden…</div>
-<div class="hint"><kbd>spatie</kbd> volgende &nbsp; <kbd>←</kbd> terug &nbsp; <kbd>b</kbd> zwart scherm &nbsp; <kbd>r</kbd> opnieuw laden</div>
+<div class="hint">
+  <kbd>spatie</kbd> volgende team &nbsp;
+  <kbd>←</kbd> terug &nbsp;
+  <kbd>↑</kbd><kbd>↓</kbd> plek kiezen &nbsp;
+  <kbd>enter</kbd> alles op kaart &nbsp;
+  <kbd>b</kbd> zwart &nbsp;
+  <kbd>r</kbd> herladen
+</div>
 
 <div class="winner-banner" id="banner">🏆 Winnaar!</div>
 <canvas id="confetti"></canvas>
@@ -77,11 +118,14 @@ const CONFIG = {
   endpoint: "https://script.google.com/macros/s/AKfycbzcZZTXO92FK5n2vTTc4ayJYsnNnzCinmFlEWGWf5pocHUMRCEXfyg94SLXZnFT4KW2/exec",
   // Strafgraden per plek die een team niet heeft gedaan
   missingPenalty: 90,
+  // Reservelocatie als een rij geen venueLat/venueLon heeft
+  venue: { lat: 52.0036705010981, lon: 5.900167982645029 },
 };
 // =====================================================================
 
 const $ = id => document.getElementById(id);
 const DEMO = new URLSearchParams(location.search).has("demo");
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 
 // ---------- data ----------
 async function loadRows() {
@@ -89,17 +133,31 @@ async function loadRows() {
   const res = await fetch(CONFIG.endpoint + "?action=results");
   const data = await res.json();
   if (!data.ok) throw new Error(data.error || "onbekende fout");
+  if (!Array.isArray(data.rows)) throw new Error("de Apps Script draait nog een oude versie zonder ?action=results. Maak een nieuwe versie van de deployment.");
   return data.rows;
 }
 
 function demoRows() {
+  const V = CONFIG.venue;
+  const lm = [
+    ["Zwembad Klarenbeek", 51.995647, 5.922721], ["Zwembad Valkenhuizen", 52.005868, 5.932999],
+    ["Witte Villa (Sonsbeek)", 51.990580, 5.905167], ["Ingang Burgers' Zoo", 52.007944, 5.898553],
+    ["Sportcentrum Papendal", 52.014680, 5.830073], ["Arnhem Centraal", 51.984259, 5.900508],
+    ["Winkelcentrum Presikhaaf", 51.983838, 5.948522], ["Hoogte 80", 52.001647, 5.932934],
+    ["Kröller-Müller Museum", 52.099009, 5.830605],
+  ];
   const teams = ["De Kompasridders", "Team Verdwaald", "Oma's Navigatie"];
   const rows = [];
   teams.forEach((team, ti) => {
-    for (let i = 1; i <= 9; i++) {
-      rows.push({ team, sessionId: "demo" + ti, trialIndex: i, trialCount: 9,
-        landmark: "Plek " + i, absError: +(Math.random() * (20 + ti * 25)).toFixed(1) });
-    }
+    lm.forEach(([name, lat, lon], i) => {
+      if (ti === 1 && i === 8) return;   // team 2 miste een plek
+      const tb = bearing(V, { lat, lon }), d = distance(V, { lat, lon });
+      const err = (Math.random() - 0.5) * (30 + ti * 60);
+      const g = destination(V, tb + err, d);
+      rows.push({ receivedAt: new Date(Date.now() - ti * 60000 + i * 1000).toISOString(), team, sessionId: "demo" + ti,
+        trialIndex: i + 1, trialCount: 9, landmark: name, trueBearing: tb, heading: tb + err, error: err, absError: Math.abs(err),
+        landmarkLat: lat, landmarkLon: lon, guessLat: g.lat, guessLon: g.lon, venueLat: V.lat, venueLon: V.lon });
+    });
   });
   return rows;
 }
@@ -108,12 +166,20 @@ function demoRows() {
 function computeTeams(rows) {
   const sessions = {};
   rows.forEach(r => {
-    const key = r.sessionId || r.team;
-    if (!sessions[key]) sessions[key] = { team: r.team, sessionId: key, trials: {}, trialCount: +r.trialCount || 0, last: "" };
+    const team = r.team || r.name;
+    if (!team || isNaN(+r.absError)) return;
+    const key = r.sessionId || team;
+    if (!sessions[key]) sessions[key] = { team, sessionId: key, trials: {}, trialCount: +r.trialCount || 0, last: "", first: "", seq: 0, venue: null };
     const s = sessions[key];
-    s.trials[r.trialIndex] = +r.absError;     // dubbele posts overschrijven elkaar
+    const idx = r.trialIndex || ++s.seq;
+    s.trials[idx] = {
+      idx: +idx, name: r.landmark || ("Plek " + idx), absError: +r.absError,
+      lat: +r.landmarkLat, lon: +r.landmarkLon, gLat: +r.guessLat, gLon: +r.guessLon,
+    };
     s.trialCount = Math.max(s.trialCount, +r.trialCount || 0);
+    if (!s.venue && r.venueLat) s.venue = { lat: +r.venueLat, lon: +r.venueLon };
     if (r.receivedAt > s.last) s.last = r.receivedAt;
+    if (!s.first || r.receivedAt < s.first) s.first = r.receivedAt;
   });
   const byTeam = {};
   Object.values(sessions).forEach(s => {
@@ -122,72 +188,117 @@ function computeTeams(rows) {
     if (!cur || n > cur.n || (n === cur.n && s.last > cur.last)) byTeam[s.team] = { ...s, n };
   });
   return Object.values(byTeam).map(s => {
-    const errs = Object.values(s.trials);
-    const total = s.trialCount || errs.length;
-    const missing = Math.max(0, total - errs.length);
-    const sum = errs.reduce((a, b) => a + b, 0) + missing * CONFIG.missingPenalty;
-    return { team: s.team, done: errs.length, total, missing, mean: sum / total };
-  }).sort((a, b) => a.mean - b.mean);   // beste eerst; rank 1 = laagste fout
+    const trials = Object.values(s.trials).sort((a, b) => a.idx - b.idx);
+    const total = s.trialCount || trials.length;
+    const missing = Math.max(0, total - trials.length);
+    const sum = trials.reduce((a, t) => a + t.absError, 0) + missing * CONFIG.missingPenalty;
+    return { team: s.team, trials, done: trials.length, total, missing, mean: sum / total, venue: s.venue || CONFIG.venue, first: s.first };
+  });
 }
 
-// ---------- weergave ----------
-let teams = [];
-let step = 0;          // aantal getoonde sub-stappen; elk team heeft 3 (positie, naam, score)
-let maxStep = 0;
+// ---------- geo ----------
+const toRad = d => d * Math.PI / 180, toDeg = r => r * 180 / Math.PI, R = 6371000;
+function bearing(a, b) {
+  const φ1 = toRad(a.lat), φ2 = toRad(b.lat), Δλ = toRad(b.lon - a.lon);
+  return ((toDeg(Math.atan2(Math.sin(Δλ) * Math.cos(φ2), Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ))) % 360) + 360) % 360;
+}
+function distance(a, b) {
+  const φ1 = toRad(a.lat), φ2 = toRad(b.lat), dφ = φ2 - φ1, dλ = toRad(b.lon - a.lon);
+  const h = Math.sin(dφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(dλ / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function destination(from, brg, d) {
+  const φ1 = toRad(from.lat), λ1 = toRad(from.lon), θ = toRad(brg), δ = d / R;
+  const φ2 = Math.asin(Math.sin(φ1) * Math.cos(δ) + Math.cos(φ1) * Math.sin(δ) * Math.cos(θ));
+  const λ2 = λ1 + Math.atan2(Math.sin(θ) * Math.sin(δ) * Math.cos(φ1), Math.cos(δ) - Math.sin(φ1) * Math.sin(φ2));
+  return { lat: toDeg(φ2), lon: toDeg(λ2) };
+}
 
+// ---------- state ----------
+let teams = [];         // slechtste eerst; het laatste team is de winnaar
+let teamIdx = 0;
+let sel = null;         // geselecteerde plek binnen team, of null = alles
+
+// ---------- team-weergave ----------
+let map = null, layer = null;
+function ensureMap() {
+  if (map || typeof L === "undefined") return;
+  map = L.map("map", { zoomControl: false, attributionControl: true });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" }).addTo(map);
+  layer = L.layerGroup().addTo(map);
+}
+const icon = e => L.divIcon({ className: "lbl-marker", html: `<div>${e}</div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+
+function renderTeam() {
+  const t = teams[teamIdx];
+  if (!t) return;
+  const rank = teams.length - teamIdx;
+  const medal = rank === 1 ? "🥇 " : rank === 2 ? "🥈 " : rank === 3 ? "🥉 " : "";
+  $("t-counter").textContent = `${medal}${rank}e plaats`;
+  $("t-counter").className = "counter r" + rank;
+  document.querySelector(".teamcard").className = "teamcard r" + rank;
+  $("t-name").textContent = t.team;
+  $("t-mean").innerHTML = `${t.mean.toFixed(1)}°<small>gemiddeld ernaast${t.missing ? `, ${t.done}/${t.total} plekken` : ""}</small>`;
+  $("t-list").innerHTML = t.trials.map((tr, i) => {
+    const cls = tr.absError < 15 ? "good" : tr.absError > 45 ? "bad" : "";
+    return `<div class="item${sel === i ? " sel" : ""}" data-i="${i}"><span class="n">${esc(tr.name)}</span><span class="e ${cls}">${tr.absError.toFixed(0)}°</span></div>`;
+  }).join("");
+  const selEl = $("t-list").querySelector(".item.sel");
+  if (selEl) selEl.scrollIntoView({ block: "nearest" });
+
+  ensureMap();
+  if (!map) { $("map").textContent = "Kaart kon niet laden (geen internet?)"; return; }
+  layer.clearLayers();
+  const v = [t.venue.lat, t.venue.lon];
+  const list = sel == null ? t.trials : [t.trials[sel]];
+  const bounds = [v];
+  L.marker(v, { icon: icon("🏠") }).addTo(layer);
+  list.forEach(tr => {
+    if (isNaN(tr.lat) || isNaN(tr.gLat)) return;
+    const real = [tr.lat, tr.lon], guess = [tr.gLat, tr.gLon];
+    L.polyline([v, real], { color: "#128c7e", weight: 5, opacity: 0.9 }).addTo(layer);
+    L.polyline([v, guess], { color: "#e53935", weight: 5, opacity: 0.9, dashArray: "10 10" }).addTo(layer);
+    L.marker(real, { icon: icon("📍") }).bindTooltip(tr.name, { permanent: sel != null, direction: "top" }).addTo(layer);
+    L.marker(guess, { icon: icon("🤔") }).bindTooltip(`${tr.absError.toFixed(0)}° ernaast`, { permanent: sel != null, direction: "top" }).addTo(layer);
+    bounds.push(real, guess);
+  });
+  setTimeout(() => { map.invalidateSize(); map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 }); }, 30);
+}
+
+// ---------- navigatie ----------
 function render() {
-  const board = $("board");
-  board.innerHTML = "";
-  // flex column-reverse: eerste kind onderaan. We voegen slechtste eerst toe, zodat die onderaan staat.
-  const worstFirst = [...teams].reverse();
-  worstFirst.forEach((t, i) => {
-    const rank = teams.length - i;
-    const row = document.createElement("div");
-    row.className = "row r" + rank;
-    row.dataset.rank = rank;
-    row.innerHTML = `<div class="rank">${rank}</div>
-      <div class="name">${escapeHtml(t.team)}</div>
-      <div class="score">${t.mean.toFixed(1)}°${t.missing ? `<small>${t.done}/${t.total} plekken</small>` : ""}</div>`;
-    board.appendChild(row);
-  });
-  maxStep = teams.length * 3;
-  applyStep();
-}
-
-function applyStep() {
-  const rows = [...document.querySelectorAll(".row")];   // volgorde: slechtste eerst
-  rows.forEach((row, i) => {
-    const local = step - i * 3;   // hoeveel sub-stappen van dit team zijn onthuld
-    row.classList.toggle("pos", local >= 1);
-    row.classList.toggle("name", local >= 2);
-    row.classList.toggle("score", local >= 3);
-  });
-  const won = step >= maxStep && teams.length > 0;
+  $("sub").textContent = "Van slechtste naar beste. Gemiddelde fout in graden.";
+  renderTeam();
+  const won = teams.length > 0 && teamIdx === teams.length - 1;
   $("banner").classList.toggle("on", won);
   if (won && !confettiRunning) startConfetti();
   if (!won) stopConfetti();
-  $("status").textContent = teams.length
-    ? (step === 0 ? `${teams.length} teams geladen. Druk op spatie.` : step >= maxStep ? "" : " ")
-    : "Nog geen resultaten.";
+  $("status").textContent = teams.length ? "" : "Nog geen resultaten.";
 }
 
-function next() { if (step < maxStep) { step++; applyStep(); } }
-function prev() { if (step > 0) { step--; applyStep(); } }
+function next() {
+  if (teamIdx < teams.length - 1) { teamIdx++; sel = null; render(); }
+}
+function prev() {
+  if (teamIdx > 0) { teamIdx--; sel = null; render(); }
+}
+function selectMove(delta) {
+  if (!teams.length) return;
+  const n = teams[teamIdx].trials.length;
+  if (sel == null) sel = delta > 0 ? 0 : n - 1;
+  else sel = (sel + delta + n) % n;
+  renderTeam();
+}
 
 async function reload() {
-  step = 0;
+  teamIdx = 0; sel = null;
   $("status").textContent = "Laden…";
   try {
-    const rows = await loadRows();
-    teams = computeTeams(rows);
+    teams = computeTeams(await loadRows()).sort((a, b) => b.mean - a.mean);   // slechtste eerst
     render();
   } catch (err) {
     $("status").textContent = "Laden mislukt: " + err.message;
   }
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
 }
 
 // ---------- confetti ----------
@@ -223,14 +334,24 @@ function stopConfetti() {
   const c = $("confetti"); c.getContext("2d").clearRect(0, 0, c.width, c.height);
 }
 
-// ---------- toetsen ----------
+// ---------- toetsen en klikken ----------
 document.addEventListener("keydown", e => {
-  if (e.key === " " || e.key === "ArrowRight" || e.key === "Enter") { e.preventDefault(); next(); }
+  if (e.key === " " || e.key === "ArrowRight") { e.preventDefault(); next(); }
   else if (e.key === "ArrowLeft" || e.key === "Backspace") { e.preventDefault(); prev(); }
+  else if (e.key === "ArrowDown") { e.preventDefault(); selectMove(1); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); selectMove(-1); }
+  else if (e.key === "Enter" || e.key === "Escape") { sel = null; renderTeam(); }
   else if (e.key === "b" || e.key === "B") $("blank").classList.toggle("on");
   else if (e.key === "r" || e.key === "R") reload();
 });
-document.addEventListener("click", e => { if (e.target.id === "blank") $("blank").classList.remove("on"); else next(); });
+$("t-list").addEventListener("click", e => {
+  const it = e.target.closest(".item");
+  if (!it) return;
+  const i = +it.dataset.i;
+  sel = (sel === i) ? null : i;
+  renderTeam();
+});
+$("blank").addEventListener("click", () => $("blank").classList.remove("on"));
 
 reload();
 </script>
