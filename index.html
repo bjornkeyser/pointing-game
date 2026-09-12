@@ -90,7 +90,8 @@
   #s-trial { gap: 12px; justify-content: flex-start; padding-top: 16px; padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
   #s-trial h2 { font-size: 1rem; }
   #s-trial .landmark { font-size: 2rem; }
-  .landmark-img { width: 100%; max-height: 22vh; object-fit: cover; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+  .landmark-img { width: 100%; max-height: 18vh; object-fit: cover; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+  #s-trial .dial { width: min(38vw, 150px); height: min(38vw, 150px); }
   #s-trial .dial-hint { min-height: 0; }
   #s-trial p { font-size: 0.9rem; }
   .dial .rot { transform-origin: 50% 50%; will-change: transform; }
@@ -156,6 +157,7 @@
   <h2>Wijs met je telefoon naar</h2>
   <div class="landmark" id="landmark"></div>
   <img class="landmark-img" id="landmark-img" alt="" hidden>
+  <button class="big" id="btn-point">Ik wijs ernaar! 👉</button>
   <div class="dial-wrap">
     <svg class="dial" viewBox="0 0 200 200" aria-hidden="true">
       <circle class="ring" cx="100" cy="100" r="92"/>
@@ -166,7 +168,6 @@
   </div>
   <div class="dial-hint" id="dial-hint"></div>
   <p>Houd je telefoon plat of rechtop, met de bovenkant richting de plek.</p>
-  <button class="big" id="btn-point">Ik wijs ernaar! 👉</button>
 </section>
 
 <!-- 4. Klaar -->
@@ -200,8 +201,8 @@ const CONFIG = {
 
   // Plekken om naar te wijzen.
   landmarks: [
-    { name: "Zwembad Klarenbeek",       lat: 51.995647084472296, lon: 5.922720622871029, img: "" },
-    { name: "Zwembad Valkenhuizen",     lat: 52.005868477710685, lon: 5.932999248376347, img: "img/valkenhuizen.jpg" },
+    { name: "Zwembad Klarenbeek",       lat: 51.995647084472296, lon: 5.922720622871029, img: "img/klarenbeek.jpg" },
+    { name: "Sportcentrum Valkenhuizen", lat: 52.005868477710685, lon: 5.932999248376347, img: "img/valkenhuizen.jpg" },
     { name: "Witte Villa (Sonsbeek)",   lat: 51.99057997663649,  lon: 5.905167055802988, img: "img/witte-villa.jpg" },
     { name: "Ingang Burgers' Zoo",      lat: 52.00794439178726,  lon: 5.898552905279525, img: "img/burgers-zoo.jpg" },
     { name: "Sportcentrum Papendal",    lat: 52.014680361794994, lon: 5.830072551886468, img: "img/papendal.jpg" },
@@ -485,27 +486,41 @@ function escapeHtml(s) {
 // ---------- versturen ----------
 // Elke wijs is één POST. Mislukte posts blijven in state.pending staan en gaan
 // mee bij de volgende wijs, bij "Opnieuw versturen", of na herladen.
+// Alle wachtende wijzen gaan tegelijk weg; per request geldt een tijdslimiet.
+const SEND_TIMEOUT_MS = 8000;
 let flushing = false;
+const inFlight = new Set();   // items die op dit moment onderweg zijn
+
+function postItem(item) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), SEND_TIMEOUT_MS);
+  return fetch(CONFIG.endpoint, {
+    method: "POST", mode: "no-cors", keepalive: true,
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify(item),
+    signal: ctrl.signal,
+  }).finally(() => clearTimeout(timer));
+}
+
 async function flushQueue() {
-  if (flushing) return;
   if (!CONFIG.endpoint || CONFIG.endpoint.includes("PASTE_YOUR")) { renderSendStatus(); return; }
+  const todo = state.pending.filter(it => !inFlight.has(it));
+  if (!todo.length) return;
+  todo.forEach(it => inFlight.add(it));
   flushing = true;
   renderSendStatus();
-  while (state.pending.length) {
-    const item = state.pending[0];
+  await Promise.all(todo.map(async it => {
     try {
-      await fetch(CONFIG.endpoint, {
-        method: "POST", mode: "no-cors",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(item),
-      });
-      state.pending.shift();
+      await postItem(it);
+      state.pending = state.pending.filter(p => p !== it);
       saveProgress();
-    } catch (err) {
-      break; // geen verbinding; later opnieuw
+    } catch (_) {
+      // geen verbinding of te traag; blijft in de wachtrij
+    } finally {
+      inFlight.delete(it);
     }
-  }
-  flushing = false;
+  }));
+  flushing = inFlight.size > 0;
   renderSendStatus();
 }
 

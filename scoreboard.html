@@ -54,6 +54,15 @@
   .lbl-marker div { font-size: 3.2vh; line-height: 1; text-align: center; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.5)); }
   .leaflet-container { font-family: inherit; font-size: 2vh; }
 
+  /* startscherm */
+  #p-intro { align-items: center; justify-content: center; }
+  .intro { text-align: center; display: flex; flex-direction: column; gap: 3vh; }
+  .intro-emoji { font-size: 14vh; line-height: 1; }
+  .intro-title { font-size: 9vh; font-weight: 800; color: var(--accent2); line-height: 1; }
+  .intro-sub { font-size: 3.5vh; color: var(--muted); font-weight: 600; }
+  .intro-hint { font-size: 2.4vh; color: var(--muted); margin-top: 4vh; }
+  .intro-hint kbd { background: #fff; border-radius: 0.6vh; padding: 0.2vh 1vh; border: 1px solid #ccc; font-family: inherit; }
+
   .teamcard.r1 { background: #fff8dc; border: 3px solid var(--gold); }
   .teamcard .counter.r1 { color: var(--gold); }
   .teamcard .counter.r2 { color: var(--silver); }
@@ -79,7 +88,17 @@
 <h1>🧭 Wijs het aan! <small id="sub"></small></h1>
 
 <!-- countdown: team voor team, slechtste eerst -->
-<div class="phase active" id="p-team">
+<!-- startscherm -->
+<div class="phase active" id="p-intro">
+  <div class="intro">
+    <div class="intro-emoji">🧭🏆</div>
+    <div class="intro-title">De uitslag</div>
+    <div class="intro-sub" id="intro-sub"></div>
+    <div class="intro-hint">Druk op <kbd>spatie</kbd> om te beginnen</div>
+  </div>
+</div>
+
+<div class="phase" id="p-team">
   <div id="map"></div>
   <div class="side">
     <div class="teamcard">
@@ -140,7 +159,7 @@ async function loadRows() {
 function demoRows() {
   const V = CONFIG.venue;
   const lm = [
-    ["Zwembad Klarenbeek", 51.995647, 5.922721], ["Zwembad Valkenhuizen", 52.005868, 5.932999],
+    ["Zwembad Klarenbeek", 51.995647, 5.922721], ["Sportcentrum Valkenhuizen", 52.005868, 5.932999],
     ["Witte Villa (Sonsbeek)", 51.990580, 5.905167], ["Ingang Burgers' Zoo", 52.007944, 5.898553],
     ["Sportcentrum Papendal", 52.014680, 5.830073], ["Arnhem Centraal", 51.984259, 5.900508],
     ["Winkelcentrum Presikhaaf", 51.983838, 5.948522], ["Hoogte 80", 52.001647, 5.932934],
@@ -216,7 +235,7 @@ function destination(from, brg, d) {
 
 // ---------- state ----------
 let teams = [];         // slechtste eerst; het laatste team is de winnaar
-let teamIdx = 0;
+let teamIdx = -1;       // -1 = startscherm
 let sel = null;         // geselecteerde plek binnen team, of null = alles
 
 // ---------- team-weergave ----------
@@ -259,7 +278,7 @@ function renderTeam() {
     L.polyline([v, real], { color: "#128c7e", weight: 5, opacity: 0.9 }).addTo(layer);
     L.polyline([v, guess], { color: "#e53935", weight: 5, opacity: 0.9, dashArray: "10 10" }).addTo(layer);
     L.marker(real, { icon: icon("📍") }).bindTooltip(tr.name, { permanent: sel != null, direction: "top" }).addTo(layer);
-    L.marker(guess, { icon: icon("🤔") }).bindTooltip(`${tr.absError.toFixed(0)}° ernaast`, { permanent: sel != null, direction: "top" }).addTo(layer);
+    L.marker(guess, { icon: icon("👉") }).bindTooltip(`${tr.absError.toFixed(0)}° ernaast`, { permanent: sel != null, direction: "top" }).addTo(layer);
     bounds.push(real, guess);
   });
   setTimeout(() => { map.invalidateSize(); map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 }); }, 30);
@@ -267,23 +286,32 @@ function renderTeam() {
 
 // ---------- navigatie ----------
 function render() {
-  $("sub").textContent = "Van slechtste naar beste. Gemiddelde fout in graden.";
-  renderTeam();
-  const won = teams.length > 0 && teamIdx === teams.length - 1;
-  $("banner").classList.toggle("on", won);
-  if (won && !confettiRunning) startConfetti();
-  if (!won) stopConfetti();
+  const intro = teamIdx < 0;
+  $("p-intro").classList.toggle("active", intro);
+  $("p-team").classList.toggle("active", !intro);
+  if (intro) {
+    $("sub").textContent = "";
+    $("intro-sub").textContent = teams.length ? `${teams.length} teams, ${teams[0].total} plekken` : "";
+    stopConfetti(); $("banner").classList.remove("on");
+  } else {
+    $("sub").textContent = "Van laatste naar eerste. Gemiddelde fout in graden.";
+    renderTeam();
+    const won = teamIdx === teams.length - 1;
+    $("banner").classList.toggle("on", won);
+    if (won && !confettiRunning) startConfetti();
+    if (!won) stopConfetti();
+  }
   $("status").textContent = teams.length ? "" : "Nog geen resultaten.";
 }
 
 function next() {
-  if (teamIdx < teams.length - 1) { teamIdx++; sel = null; render(); }
+  if (teams.length && teamIdx < teams.length - 1) { teamIdx++; sel = null; render(); }
 }
 function prev() {
-  if (teamIdx > 0) { teamIdx--; sel = null; render(); }
+  if (teamIdx >= 0) { teamIdx--; sel = null; render(); }
 }
 function selectMove(delta) {
-  if (!teams.length) return;
+  if (!teams.length || teamIdx < 0) return;
   const n = teams[teamIdx].trials.length;
   if (sel == null) sel = delta > 0 ? 0 : n - 1;
   else sel = (sel + delta + n) % n;
@@ -291,7 +319,7 @@ function selectMove(delta) {
 }
 
 async function reload() {
-  teamIdx = 0; sel = null;
+  teamIdx = -1; sel = null;
   $("status").textContent = "Laden…";
   try {
     teams = computeTeams(await loadRows()).sort((a, b) => b.mean - a.mean);   // slechtste eerst
@@ -340,7 +368,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === "ArrowLeft" || e.key === "Backspace") { e.preventDefault(); prev(); }
   else if (e.key === "ArrowDown") { e.preventDefault(); selectMove(1); }
   else if (e.key === "ArrowUp") { e.preventDefault(); selectMove(-1); }
-  else if (e.key === "Enter" || e.key === "Escape") { sel = null; renderTeam(); }
+  else if (e.key === "Enter" || e.key === "Escape") { sel = null; if (teamIdx >= 0) renderTeam(); }
   else if (e.key === "b" || e.key === "B") $("blank").classList.toggle("on");
   else if (e.key === "r" || e.key === "R") reload();
 });
