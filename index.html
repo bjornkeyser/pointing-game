@@ -90,6 +90,7 @@
   #s-trial { gap: 12px; justify-content: flex-start; padding-top: 16px; padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
   #s-trial h2 { font-size: 1rem; }
   #s-trial .landmark { font-size: 2rem; }
+  .landmark-img { width: 100%; max-height: 22vh; object-fit: cover; border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
   #s-trial .dial-hint { min-height: 0; }
   #s-trial p { font-size: 0.9rem; }
   .dial .rot { transform-origin: 50% 50%; will-change: transform; }
@@ -154,6 +155,7 @@
   <div class="dots" id="dots"></div>
   <h2>Wijs met je telefoon naar</h2>
   <div class="landmark" id="landmark"></div>
+  <img class="landmark-img" id="landmark-img" alt="" hidden>
   <div class="dial-wrap">
     <svg class="dial" viewBox="0 0 200 200" aria-hidden="true">
       <circle class="ring" cx="100" cy="100" r="92"/>
@@ -198,15 +200,15 @@ const CONFIG = {
 
   // Plekken om naar te wijzen.
   landmarks: [
-    { name: "Zwembad Klarenbeek",       lat: 51.995647084472296, lon: 5.922720622871029 },
-    { name: "Zwembad Valkenhuizen",     lat: 52.005868477710685, lon: 5.932999248376347 },
-    { name: "Witte Villa (Sonsbeek)",   lat: 51.99057997663649,  lon: 5.905167055802988 },
-    { name: "Ingang Burgers' Zoo",      lat: 52.00794439178726,  lon: 5.898552905279525 },
-    { name: "Sportcentrum Papendal",    lat: 52.014680361794994, lon: 5.830072551886468 },
-    { name: "Arnhem Centraal",          lat: 51.98425853573312,  lon: 5.90050763830271 },
-    { name: "Winkelcentrum Presikhaaf", lat: 51.98383756700917,  lon: 5.948522044594798 },
-    { name: "Hoogte 80",                lat: 52.00164695984213,  lon: 5.9329336955606315 },
-    { name: "Kröller-Müller Museum",    lat: 52.0990094609962,   lon: 5.8306052045365595 },
+    { name: "Zwembad Klarenbeek",       lat: 51.995647084472296, lon: 5.922720622871029, img: "" },
+    { name: "Zwembad Valkenhuizen",     lat: 52.005868477710685, lon: 5.932999248376347, img: "img/valkenhuizen.jpg" },
+    { name: "Witte Villa (Sonsbeek)",   lat: 51.99057997663649,  lon: 5.905167055802988, img: "img/witte-villa.jpg" },
+    { name: "Ingang Burgers' Zoo",      lat: 52.00794439178726,  lon: 5.898552905279525, img: "img/burgers-zoo.jpg" },
+    { name: "Sportcentrum Papendal",    lat: 52.014680361794994, lon: 5.830072551886468, img: "img/papendal.jpg" },
+    { name: "Arnhem Centraal",          lat: 51.98425853573312,  lon: 5.90050763830271,  img: "img/arnhem-centraal.jpg" },
+    { name: "Winkelcentrum Presikhaaf", lat: 51.98383756700917,  lon: 5.948522044594798, img: "img/presikhaaf.jpg" },
+    { name: "Hoogte 80",                lat: 52.00164695984213,  lon: 5.9329336955606315, img: "img/hoogte80.jpg" },
+    { name: "Kröller-Müller Museum",    lat: 52.0990094609962,   lon: 5.8306052045365595, img: "img/kroller-muller.jpg" },
   ],
 
   // Volgorde per speler husselen.
@@ -363,7 +365,7 @@ function buildDial() {
 // ---------- spelverloop ----------
 function buildTrials() {
   let list = CONFIG.landmarks.map(l => ({
-    name: l.name, lat: l.lat, lon: l.lon,
+    name: l.name, lat: l.lat, lon: l.lon, img: l.img || "",
     trueBearing: bearing(CONFIG.venue, l),
     dist: distance(CONFIG.venue, l),
   }));
@@ -424,6 +426,8 @@ function renderTrial() {
     d.className = i < state.idx ? "done" : i === state.idx ? "now" : "";
   });
   $("landmark").textContent = t.name;
+  const im = $("landmark-img");
+  if (t.img) { im.src = t.img; im.hidden = false; } else { im.hidden = true; im.removeAttribute("src"); }
 }
 
 function recordTrial() {
@@ -587,6 +591,7 @@ if (DEBUG) {
 }
 
 buildDial();
+CONFIG.landmarks.forEach(l => { if (l.img) { const i = new Image(); i.src = l.img; } });   // plaatjes vast laden
 
 // Bij (her)laden: was er een spel bezig of net afgerond?
 (function restore() {
