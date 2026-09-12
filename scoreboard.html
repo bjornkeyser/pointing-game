@@ -246,7 +246,7 @@ function ensureMap() {
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" }).addTo(map);
   layer = L.layerGroup().addTo(map);
 }
-const icon = e => L.divIcon({ className: "lbl-marker", html: `<div>${e}</div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+const icon = (e, rot = 0) => L.divIcon({ className: "lbl-marker", html: `<div style="transform:rotate(${rot}deg)">${e}</div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
 
 function renderTeam() {
   const t = teams[teamIdx];
@@ -278,7 +278,9 @@ function renderTeam() {
     L.polyline([v, real], { color: "#128c7e", weight: 5, opacity: 0.9 }).addTo(layer);
     L.polyline([v, guess], { color: "#e53935", weight: 5, opacity: 0.9, dashArray: "10 10" }).addTo(layer);
     L.marker(real, { icon: icon("📍") }).bindTooltip(tr.name, { permanent: sel != null, direction: "top" }).addTo(layer);
-    L.marker(guess, { icon: icon("👉") }).bindTooltip(`${tr.absError.toFixed(0)}° ernaast`, { permanent: sel != null, direction: "top" }).addTo(layer);
+    // 👉 wijst van nature naar rechts (oost = 90°), dus draaien met richting - 90
+    const brg = bearing({ lat: v[0], lon: v[1] }, { lat: tr.gLat, lon: tr.gLon });
+    L.marker(guess, { icon: icon("👉", brg - 90) }).bindTooltip(`${tr.absError.toFixed(0)}° ernaast`, { permanent: sel != null, direction: "top" }).addTo(layer);
     bounds.push(real, guess);
   });
   setTimeout(() => { map.invalidateSize(); map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 }); }, 30);
